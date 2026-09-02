@@ -251,6 +251,22 @@
     (imagesByPage[im.page] = imagesByPage[im.page] || []).push(im);
   });
 
+  // Manual placement overrides: an image's original PDF page (images.json's
+  // "page") is where it happened to sit physically, which isn't always the
+  // section it actually illustrates — e.g. the territorial-waters diagram
+  // is filed under page 2 but belongs with the "국가" section that starts
+  // on page 1. Each entry moves the named file(s) to render immediately
+  // after the given L1 heading instead of at the end of their filed page.
+  var IMAGE_AFTER_L1 = {
+    "국가": ["page01_img1.png"]
+  };
+  var overriddenFiles = {};
+  Object.keys(IMAGE_AFTER_L1).forEach(function(k){
+    IMAGE_AFTER_L1[k].forEach(function(f){ overriddenFiles[f] = true; });
+  });
+  var imageByFile = {};
+  IMAGES_META.forEach(function(im){ imageByFile[im.file] = im; });
+
   function esc(s){
     return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
@@ -265,6 +281,28 @@
 
   function stripLeadNumber(t){
     return String(t||"").replace(/^\s*\d+\s*/, "");
+  }
+
+  // A NOTE line that wrapped in the original PDF got its second (and any
+  // further) line tagged as a separate plain TEXT item instead of staying
+  // part of the note — the giveaway is that the note doesn't actually end
+  // on a sentence boundary. Detecting that and folding the following TEXT
+  // item(s) back in keeps a wrapped note in its own box instead of trailing
+  // off into an unrelated-looking paragraph right below it.
+  var SENT_END_RE = /[。．.!！?？…」』"'）\)\]】]$/;
+  function isSentenceComplete(t){
+    return SENT_END_RE.test(String(t||"").trim());
+  }
+
+  // A run like "…3가지 유형 ① 전통적 지배: … ② 카리스마적 지배: … ③ 합법적
+  // 지배: …" was extracted as one wall-to-wall paragraph; splitting before
+  // each circled-number marker (①-⑳ — unambiguously an enumeration, never
+  // anything else) turns it back into one paragraph per item.
+  function splitEnumerated(text){
+    return String(text||"").split(/(?=[①-⑳])/).filter(function(s){ return s.length; });
+  }
+  function formatProseHtml(text){
+    return splitEnumerated(text).map(function(seg){ return '<p class="text">'+esc(seg)+'</p>'; }).join("");
   }
 
   // H1 "colon rule": bold the lead clause up through a colon only when a
@@ -283,14 +321,10 @@
     return '<span class="lead">'+esc(text)+'</span>';
   }
 
-  function renderFigs(pageNo){
-    var ims = imagesByPage[pageNo];
+  function figuresHtml(ims){
     if(!ims || !ims.length) return "";
     var html = '<div class="figs">';
-    ims.slice().sort(function(a,b){
-      if(a.column !== b.column) return a.column === "left" ? -1 : 1;
-      return a.file < b.file ? -1 : (a.file > b.file ? 1 : 0);
-    }).forEach(function(im){
+    ims.forEach(function(im){
       var wide = (im.w / im.h) > 1.55;
       var src = IMAGES_SRC[im.file];
       if(!src) return;
@@ -298,6 +332,23 @@
     });
     html += '</div>';
     return html;
+  }
+
+  function renderFigs(pageNo){
+    var ims = (imagesByPage[pageNo]||[]).filter(function(im){ return !overriddenFiles[im.file]; });
+    if(!ims.length) return "";
+    ims = ims.slice().sort(function(a,b){
+      if(a.column !== b.column) return a.column === "left" ? -1 : 1;
+      return a.file < b.file ? -1 : (a.file > b.file ? 1 : 0);
+    });
+    return figuresHtml(ims);
+  }
+
+  function renderFigsAfterL1(l1Text){
+    var files = IMAGE_AFTER_L1[l1Text];
+    if(!files) return "";
+    var ims = files.map(function(f){ return imageByFile[f]; }).filter(Boolean);
+    return figuresHtml(ims);
   }
 
   // ---------------- flatten the whole book into one ordered stream of
@@ -335,6 +386,8 @@
           tocEntryById[lid] = curL1Entry;
           curPartEntry.l1s.push(curL1Entry);
           units.push({ html: '<h2 class="l1" data-toc-id="'+lid+'">'+esc(curL1)+'</h2>', state:{part:curPart,l1:curL1}, avoidOrphan:true });
+          var overrideFigHtml = renderFigsAfterL1(curL1);
+          if(overrideFigHtml) units.push({ html: overrideFigHtml, state:{part:curPart,l1:curL1} });
         } else if(it.marker === "H1"){
           var hid = "t"+(tocIdSeq++);
           var h1Entry = { text: it.text.replace(/\s*[:：].*$/,""), id: hid };
@@ -350,16 +403,27 @@
         } else if(it.marker === "H3"){
           units.push({ html: '<h5 class="h3"><span class="bullet">'+esc(it.symbol||"◎")+'</span>'+esc(it.text)+'</h5>', state:{part:curPart,l1:curL1} });
         } else if(it.marker === "NOTE"){
-          units.push({ html: '<p class="note"><span class="bullet">'+esc(it.symbol||"※")+'</span>'+esc(it.text)+'</p>', state:{part:curPart,l1:curL1} });
+          var noteText = it.text;
+          var k = i+1;
+          while(!isSentenceComplete(noteText) && k < items.length && items[k].marker === "TEXT"){
+            noteText += " " + items[k].text; // the line wrap almost always fell at a word boundary; occasionally
+            // (a single trailing syllable of one word) this leaves a stray space rather than a joined word —
+            // a milder defect than running two words together with none at all.
+            k++;
+          }
+          units.push({ html: '<p class="note"><span class="bullet">'+esc(it.symbol||"※")+'</span>'+esc(noteText)+'</p>', state:{part:curPart,l1:curL1} });
+          i = k-1;
         } else if(it.marker === "TOPIC"){
           var title = it.text.replace(/^\s*TOPIC\s*[:：]\s*/, "");
           var body = "";
           var j = i+1;
-          while(j < items.length && items[j].marker === "TEXT"){ body += '<p class="text">'+esc(items[j].text)+'</p>'; j++; }
+          while(j < items.length && items[j].marker === "TEXT"){ body += formatProseHtml(items[j].text); j++; }
           units.push({ html: '<div class="topic"><span class="chip">TOPIC</span><span class="topic-title">'+esc(title)+'</span>'+body+'</div>', state:{part:curPart,l1:curL1} });
           i = j-1;
         } else { // TEXT
-          units.push({ html: '<p class="text">'+esc(it.text)+'</p>', state:{part:curPart,l1:curL1} });
+          splitEnumerated(it.text).forEach(function(seg){
+            units.push({ html: '<p class="text">'+esc(seg)+'</p>', state:{part:curPart,l1:curL1} });
+          });
         }
       }
       var figHtml = renderFigs(pageObj.page);
