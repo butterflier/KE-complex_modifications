@@ -15376,10 +15376,26 @@
     // instead of reaching the actual rest of the sentence.
     var SKIP_ITEM_TEXTS = { "를 가진다.": true };
 
+    // A few items were tagged at the wrong level by the extraction: "세계
+    // 각국의 정치 체제" is the real section heading but came through as a
+    // plain paragraph, while the five country-by-country subsections under
+    // it were tagged as if they were top-level L1s (같은 "1 …" 번호 패턴 때문에)
+    // instead of the ●-bulleted H1s they actually are.
+    var RECLASSIFY = {
+      "세계 각국의 정치 체제": { marker: "L1" },
+      "1 의원내각제와 대통령제": { marker: "H1", symbol: "●", text: "의원내각제와 대통령제" },
+      "2 영국의 정치 체제": { marker: "H1", symbol: "●", text: "영국의 정치 체제" },
+      "3 미국의 정치 체제": { marker: "H1", symbol: "●", text: "미국의 정치 체제" },
+      "4 프랑스·러시아·중국의 정치 체제": { marker: "H1", symbol: "●", text: "프랑스·러시아·중국의 정치 체제" },
+      "5 개발독재와 이슬람 국가의 정치 체제": { marker: "H1", symbol: "●", text: "개발독재와 이슬람 국가의 정치 체제" }
+    };
+
     var items = [];
     CONTENT.forEach(function(pageObj){
       flattenItems(pageObj).forEach(function(it){
         if(SKIP_ITEM_TEXTS[it.text]) return;
+        var patch = RECLASSIFY[it.text];
+        if(patch) it = Object.assign({}, it, patch);
         items.push({ it: it, page: pageObj.page });
       });
     });
@@ -15440,7 +15456,17 @@
           // a milder defect than running two words together with none at all.
           k++;
         }
-        units.push({ html: '<p class="note"><span class="bullet">'+esc(it.symbol||"※")+'</span>'+esc(noteText)+'</p>', state:{part:curPart,l1:curL1} });
+        // A short ※ line is a genuine marginal annotation and keeps the note
+        // styling; once merging has stretched it past a couple of sentences
+        // it reads as real body content, not an aside, so it renders as
+        // plain paragraphs (no bullet, no italic, no border) instead.
+        if(noteText.length > 100){
+          splitEnumerated(noteText).forEach(function(seg){
+            units.push({ html: '<p class="text">'+esc(seg)+'</p>', state:{part:curPart,l1:curL1} });
+          });
+        } else {
+          units.push({ html: '<p class="note"><span class="bullet">'+esc(it.symbol||"※")+'</span>'+esc(noteText)+'</p>', state:{part:curPart,l1:curL1} });
+        }
         var overrideFigHtml3 = renderImageOverride(it.text);
         if(overrideFigHtml3) units.push({ html: overrideFigHtml3, state:{part:curPart,l1:curL1} });
         i = k-1;
