@@ -15444,7 +15444,7 @@
         curL1Entry = { text: curL1, h1s: [], id: lid };
         tocEntryById[lid] = curL1Entry;
         curPartEntry.l1s.push(curL1Entry);
-        units.push({ html: '<h2 class="l1" data-toc-id="'+lid+'">'+esc(curL1)+'</h2>', state:{part:curPart,l1:curL1}, avoidOrphan:true });
+        units.push({ html: '<h2 class="l1" data-toc-id="'+lid+'">'+esc(curL1)+'</h2>', state:{part:curPart,l1:curL1}, isHeading:true });
         var overrideFigHtml1 = renderImageOverride(curL1);
         if(overrideFigHtml1) units.push({ html: overrideFigHtml1, state:{part:curPart,l1:curL1} });
       } else if(it.marker === "H1"){
@@ -15456,14 +15456,14 @@
         // it did, h1Entry would simply have no TOC row — its body text still renders either way.
         units.push({
           html: '<h3 class="h1" data-toc-id="'+hid+'"><span class="bullet">'+esc(it.symbol||"")+'</span>'+renderH1Text(it.text)+'</h3>',
-          state:{part:curPart,l1:curL1}
+          state:{part:curPart,l1:curL1}, isHeading:true
         });
         var overrideFigHtml2 = renderImageOverride(it.text) || renderImageOverride(h1TocText);
         if(overrideFigHtml2) units.push({ html: overrideFigHtml2, state:{part:curPart,l1:curL1} });
       } else if(it.marker === "H2"){
-        units.push({ html: '<h4 class="h2"><span class="bullet">'+esc(it.symbol||"○")+'</span>'+esc(it.text)+'</h4>', state:{part:curPart,l1:curL1} });
+        units.push({ html: '<h4 class="h2"><span class="bullet">'+esc(it.symbol||"○")+'</span>'+esc(it.text)+'</h4>', state:{part:curPart,l1:curL1}, isHeading:true });
       } else if(it.marker === "H3"){
-        units.push({ html: '<h5 class="h3"><span class="bullet">'+esc(it.symbol||"◎")+'</span>'+esc(it.text)+'</h5>', state:{part:curPart,l1:curL1} });
+        units.push({ html: '<h5 class="h3"><span class="bullet">'+esc(it.symbol||"◎")+'</span>'+esc(it.text)+'</h5>', state:{part:curPart,l1:curL1}, isHeading:true });
       } else if(it.marker === "NOTE"){
         var noteText = it.text;
         var k = i+1;
@@ -15594,19 +15594,11 @@
 
   // Appends `unit.html` (always exactly one top-level element) to the
   // current page; if that overflows the page, the element is removed and
-  // re-appended to a freshly created page instead. `avoidOrphan` additionally
-  // pre-empts a heading landing alone at the very bottom of a page by
-  // breaking before it whenever the page is already mostly full.
+  // re-appended to a freshly created page instead.
   function placeUnit(pages, cur, unit, pageFactory){
     if(unit.forceBreak && cur.contentInner.children.length > 0){
       cur = pageFactory();
       pages.push(cur);
-    } else if(unit.avoidOrphan && cur.contentInner.children.length > 0){
-      var usedRatio = cur.contentInner.getBoundingClientRect().height / cur.contentWrap.getBoundingClientRect().height;
-      if(usedRatio > 0.86){
-        cur = pageFactory();
-        pages.push(cur);
-      }
     }
     cur.contentInner.insertAdjacentHTML("beforeend", unit.html);
     if(cur.contentInner.children.length > 1 && overflowed(cur)){
@@ -15618,13 +15610,43 @@
     return cur;
   }
 
+  // A heading (`isHeading`) that fits on the current page but leaves no
+  // room for what comes right after it would otherwise sit orphaned at the
+  // very bottom, with its own content starting fresh on the next page —
+  // and a run of several headings in a row (L1 then immediately H1) needs
+  // the SAME guard applied to the whole run at once, or the later heading
+  // can still separate from the first even though each individually passed
+  // a plain one-ahead check. Test the whole run plus one real content unit
+  // together before committing any of it, and push the entire group onto a
+  // new page if that combination doesn't fit.
+  function fitsGroup(cur, htmlList){
+    cur.contentInner.insertAdjacentHTML("beforeend", htmlList.join(""));
+    var fits = !overflowed(cur);
+    for(var k=0;k<htmlList.length;k++) cur.contentInner.removeChild(cur.contentInner.lastElementChild);
+    return fits;
+  }
+
   function paginateBody(units){
     var pages = [];
     var cur = makeBodyPage(units.length ? units[0].state : {});
     pages.push(cur);
-    units.forEach(function(u){
+    for(var idx=0; idx<units.length; idx++){
+      var u = units[idx];
+      if(u.isHeading && cur.contentInner.children.length > 0){
+        var j = idx;
+        while(j+1 < units.length && units[j+1].isHeading) j++;
+        var end = Math.min(j+1, units.length-1); // one real content unit past the heading run, if any
+        if(end > idx && !units[end].forceBreak){
+          var htmlList = [];
+          for(var g=idx; g<=end; g++) htmlList.push(units[g].html);
+          if(!fitsGroup(cur, htmlList)){
+            cur = makeBodyPage(u.state);
+            pages.push(cur);
+          }
+        }
+      }
       cur = placeUnit(pages, cur, u, function(){ return makeBodyPage(u.state); });
-    });
+    }
     return pages;
   }
 
