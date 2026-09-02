@@ -155,7 +155,7 @@
   .h3{ font-size:9.1pt; font-weight:700; color:var(--paper-ink-soft); margin:2.4mm 0 1mm 2.2mm; break-inside:avoid-column; }
   .h3 .bullet{ margin-right:1.1mm; }
 
-  .text{ font-size:9.3pt; line-height:1.68; margin:0 0 2.1mm; text-align:justify; word-break:keep-all; overflow-wrap:break-word; }
+  .text{ font-size:9.3pt; line-height:1.68; margin:0 0 2.1mm; text-align:left; word-break:keep-all; overflow-wrap:break-word; }
 
   .note{
     font-size:8pt; line-height:1.5; color:var(--paper-ink-soft); font-style:italic;
@@ -15252,7 +15252,8 @@
   var IMAGE_AFTER_TEXT = {
     "국가": [{ file: "page01_img1.png" }],
     "법의 분류": [{ file: "page02_img2.png", narrow: true }],
-    "역사적 분류": [{ file: "page02_img1.png", narrow: true }]
+    "역사적 분류": [{ file: "page02_img1.png", narrow: true }],
+    "일본의 정치 구조와 권력분립": [{ file: "page14_img1.png", narrow: true }]
   };
   var overriddenFiles = {};
   Object.keys(IMAGE_AFTER_TEXT).forEach(function(k){
@@ -15401,8 +15402,21 @@
     // the matched prefix as its own heading and leaving the rest as the
     // paragraph that follows it fixes that without touching anything else
     // in the item.
+    // Several of these embed more than one heading in a row before the
+    // real paragraph starts (e.g. "국회의 지위와 권한 1. 일본의 정치 구조와
+    // 권력분립 헌법상 규정 …" is an L1 title immediately followed by its
+    // first H1, both swallowed into the same TEXT item) — so matching runs
+    // in a loop, peeling off one heading at a time, until nothing more
+    // matches and whatever text remains becomes the paragraph.
     var EMBEDDED_HEADINGS = [
-      { prefix: "2. 권력분립과 간접민주제 ", heading: "권력분립과 간접민주제", marker: "H1", symbol: "■" }
+      { prefix: "2. 권력분립과 간접민주제 ", heading: "권력분립과 간접민주제", marker: "H1", symbol: "■" },
+      { prefix: "국회의 지위와 권한 ", heading: "국회의 지위와 권한", marker: "L1" },
+      { prefix: "1. 일본의 정치 구조와 권력분립 ", heading: "일본의 정치 구조와 권력분립", marker: "H1", symbol: "■" },
+      { prefix: "2. 입법부(국회)와 행정부(내각)의 관계 ", heading: "입법부(국회)와 행정부(내각)의 관계", marker: "H1", symbol: "■" },
+      { prefix: "3. 사법부와 입법·행정부의 관계 ", heading: "사법부와 입법·행정부의 관계", marker: "H1", symbol: "■" },
+      { prefix: "일본의 지방분권 ", heading: "일본의 지방분권", marker: "H1", symbol: "■" },
+      { prefix: "② 국회의 지위 ", heading: "국회의 지위", marker: "H1", symbol: "■" },
+      { prefix: "■ 의회란 무엇인가 ", heading: "의회란 무엇인가", marker: "H1", symbol: "■" }
     ];
 
     var items = [];
@@ -15412,10 +15426,16 @@
         var patch = RECLASSIFY[it.text];
         if(patch) it = Object.assign({}, it, patch);
 
-        var embedded = EMBEDDED_HEADINGS.find(function(e){ return it.text.indexOf(e.prefix) === 0; });
-        if(embedded){
-          items.push({ it: { marker: embedded.marker, symbol: embedded.symbol, text: embedded.heading }, page: pageObj.page });
-          items.push({ it: { marker: "TEXT", symbol: null, text: it.text.slice(embedded.prefix.length) }, page: pageObj.page });
+        var rest = it.text;
+        var extracted = [];
+        var match;
+        while((match = EMBEDDED_HEADINGS.find(function(e){ return rest.indexOf(e.prefix) === 0; }))){
+          extracted.push({ marker: match.marker, symbol: match.symbol, text: match.heading });
+          rest = rest.slice(match.prefix.length);
+        }
+        if(extracted.length){
+          extracted.forEach(function(h){ items.push({ it: { marker: h.marker, symbol: h.symbol, text: h.text }, page: pageObj.page }); });
+          if(rest) items.push({ it: { marker: "TEXT", symbol: null, text: rest }, page: pageObj.page });
           return;
         }
         items.push({ it: it, page: pageObj.page });
