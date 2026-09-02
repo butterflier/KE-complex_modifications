@@ -211,6 +211,20 @@
   @media (max-width: 900px){
     .stage{ padding:1.2rem .6rem 4rem; }
   }
+
+  /* ---------------- print (A4, 좌철/left-bound — .page-inner's own 25mm
+     left / 15mm right / 19mm top / 17mm bottom padding IS the binding
+     margin, so @page itself stays margin:0 to avoid stacking a second
+     margin on top of it) ---------------- */
+  @media print{
+    .toolbar{ display:none !important; }
+    body{ background:#fff; }
+    .stage{ background:none; padding:0; gap:0; }
+    .page-frame{ break-after:page; }
+    .page-frame:last-child{ break-after:auto; }
+    .page{ box-shadow:none; }
+    @page{ size:A4; margin:0; }
+  }
 </style>
 
 <div class="toolbar">
