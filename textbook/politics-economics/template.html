@@ -1,0 +1,589 @@
+<!doctype html>
+<title>정치경제 교재</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  /* ---------------- tokens (continuing 원고지 조판소's palette) ---------------- */
+  :root{
+    --bg:#EEF0F0;
+    --surface:#FFFFFF;
+    --surface-2:#F6F7F7;
+    --border:#DADDDD;
+    --ink:#20242C;
+    --ink-soft:#5B6172;
+    --ink-faint:#8B909C;
+    --accent:#AE3728;
+    --accent-ink:#FFFFFF;
+    --accent-soft:#F3E1DD;
+    --shadow: 0 1px 2px rgba(20,22,28,.06), 0 8px 24px rgba(20,22,28,.08);
+
+    /* paper simulation — constant across themes, same as the exam-sheet artifact:
+       this is a physical-paper mockup, not app chrome. */
+    --paper:#FFFFFF;
+    --paper-ink:#1B1E27;
+    --paper-ink-soft:#6B6656;
+    --paper-line:#C6564A;
+    --paper-line-faint: rgba(198,86,74,.32);
+    --paper-border:#B9B2A0;
+    --paper-band: #F3EEE4;
+
+    --font-display:'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    --font-body:'Noto Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+
+    --fs-xs:.75rem; --fs-sm:.8125rem; --fs-base:.9375rem; --fs-md:1.0625rem;
+    --fs-lg:1.3rem; --fs-xl:1.7rem;
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15171B; --surface:#1C1F25; --surface-2:#22262D; --border:#31353D;
+      --ink:#E9E7E1; --ink-soft:#A7ABB6; --ink-faint:#6E7280;
+      --accent:#E2685A; --accent-ink:#20242C; --accent-soft:#3A2622;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#15171B; --surface:#1C1F25; --surface-2:#22262D; --border:#31353D;
+    --ink:#E9E7E1; --ink-soft:#A7ABB6; --ink-faint:#6E7280;
+    --accent:#E2685A; --accent-ink:#20242C; --accent-soft:#3A2622;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 28px rgba(0,0,0,.45);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:var(--font-body); font-size:var(--fs-base); line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;}
+  ::selection{ background:var(--accent-soft); }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* ---------------- shell ---------------- */
+  .toolbar{
+    height:56px; display:flex; align-items:center; gap:.75rem; padding:0 1.1rem;
+    background:var(--surface); border-bottom:1px solid var(--border); box-shadow:var(--shadow);
+    position:sticky; top:0; z-index:5;
+  }
+  .brand{ display:flex; align-items:baseline; gap:.55rem; margin-right:auto; min-width:0; }
+  .brand-mark{ font-family:var(--font-display); font-weight:700; font-size:1.05rem; letter-spacing:.01em; white-space:nowrap; }
+  .brand-sub{ font-size:var(--fs-xs); color:var(--ink-faint); white-space:nowrap; display:none; }
+  @media (min-width:640px){ .brand-sub{ display:inline; } }
+
+  .nav-jump{ display:flex; align-items:center; gap:.3rem; }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--surface-2);
+    color:var(--ink); font-size:var(--fs-sm); font-weight:600;
+    padding:.5rem .85rem; border-radius:7px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap;
+    transition:background .12s, border-color .12s, transform .06s;
+  }
+  .btn:hover{ border-color:var(--ink-faint); }
+  .btn:active{ transform:translateY(1px); }
+  .btn-ghost{ background:transparent; border-color:transparent; color:var(--ink-soft); }
+  .btn-ghost:hover{ color:var(--ink); background:var(--surface-2); }
+
+  /* ---------------- preview column ---------------- */
+  .stage{
+    background:
+      radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0) 0 0/22px 22px,
+      var(--bg);
+    padding:2.4rem 1rem 6rem; display:flex; flex-direction:column; align-items:center; gap:2.1rem;
+  }
+  .page-frame{ flex:0 0 auto; }
+
+  .page{
+    width:210mm; height:297mm; flex:0 0 auto;
+    background:var(--paper); color:var(--paper-ink);
+    box-shadow:var(--shadow);
+    position:relative; overflow:hidden;
+    font-family:var(--font-body);
+  }
+  .page-inner{
+    position:absolute; inset:0;
+    padding: 19mm 15mm 17mm 25mm; /* extra left margin reserved for coil binding */
+    display:flex; flex-direction:column;
+  }
+
+  .page-kicker{
+    display:flex; justify-content:space-between; align-items:baseline; gap:4mm;
+    font-size:8pt; color:var(--paper-ink-soft); letter-spacing:.02em;
+    border-bottom:.75pt solid var(--paper-border); padding-bottom:2.6mm; margin-bottom:6mm;
+    flex:0 0 auto;
+  }
+  .page-kicker .crumb b{ font-family:var(--font-display); color:var(--paper-ink); font-weight:700; }
+  .page-kicker .crumb .sep{ margin:0 1.6mm; color:var(--paper-border); }
+  .page-kicker .pageno{ font-variant-numeric:tabular-nums; }
+
+  .page-content{ flex:1 1 auto; min-height:0; overflow:hidden; }
+  .page-content-inner{ column-count:2; column-gap:9mm; column-rule:.6pt solid var(--paper-border); }
+
+  .page-footer{
+    flex:0 0 auto; margin-top:5mm; padding-top:2.4mm;
+    border-top:.75pt solid var(--paper-border);
+    display:flex; justify-content:space-between;
+    font-size:7.3pt; color:var(--paper-ink-soft); letter-spacing:.02em;
+  }
+
+  /* ---------------- body typography ---------------- */
+  .part-banner{
+    column-span:all; background:var(--paper-band);
+    border-left:3px solid var(--accent);
+    padding:4mm 6mm; margin:0 0 6mm; font-family:var(--font-display);
+    font-weight:700; font-size:15pt; color:var(--paper-ink); letter-spacing:.01em;
+    break-after:avoid-column;
+  }
+
+  .l1{
+    column-span:all; font-family:var(--font-display); font-weight:700; font-size:12.5pt;
+    color:var(--paper-ink); margin: 6mm 0 3mm; padding-bottom:1.6mm;
+    border-bottom:1.4pt solid var(--paper-ink);
+    break-after:avoid-column; break-inside:avoid-column;
+  }
+  .part-banner + .l1{ margin-top:0; }
+
+  .h1{ font-size:10.3pt; margin:4mm 0 1.6mm; break-inside:avoid-column; break-after:avoid-column; line-height:1.4; }
+  .h1 .bullet{ color:var(--paper-ink); margin-right:1.3mm; font-size:8pt; vertical-align:1pt; }
+  .h1 .lead{ font-weight:700; color:var(--paper-ink); font-family:var(--font-display); }
+  .h1 .rest{ font-weight:400; color:var(--paper-ink); }
+
+  .h2{ font-size:9.6pt; font-weight:700; color:var(--paper-ink); margin:3mm 0 1.1mm 1mm; break-inside:avoid-column; break-after:avoid-column; }
+  .h2 .bullet{ color:var(--paper-ink-soft); margin-right:1.2mm; font-weight:400; }
+
+  .h3{ font-size:9.1pt; font-weight:700; color:var(--paper-ink-soft); margin:2.4mm 0 1mm 2.2mm; break-inside:avoid-column; }
+  .h3 .bullet{ margin-right:1.1mm; }
+
+  .text{ font-size:9.3pt; line-height:1.68; margin:0 0 2.1mm; text-align:justify; word-break:keep-all; overflow-wrap:break-word; }
+
+  .note{
+    font-size:8pt; line-height:1.5; color:var(--paper-ink-soft); font-style:italic;
+    margin:1mm 0 1.8mm 1mm; padding-left:2.6mm; border-left:1.4pt solid var(--paper-border);
+    word-break:keep-all;
+  }
+  .note .bullet{ font-style:normal; margin-right:.8mm; color:var(--paper-line); }
+
+  .topic{
+    break-inside:avoid-column; margin:2.6mm 0 3mm; padding:3mm 3.6mm;
+    background:rgba(198,86,74,.045); border:.75pt solid var(--paper-border);
+    border-left:2.4pt solid var(--paper-line);
+  }
+  .topic .chip{
+    display:inline-block; font-family:var(--font-body); font-weight:700; font-size:6.6pt;
+    letter-spacing:.07em; color:#fff; background:var(--paper-line); border-radius:2.5px;
+    padding:1mm 1.8mm; margin-right:1.6mm; vertical-align:1.5px;
+  }
+  .topic .topic-title{ font-weight:700; font-size:9.3pt; }
+  .topic .text{ margin-top:1.6mm; }
+
+  .figs{ break-inside:avoid-column; margin:2mm 0 3mm; }
+  .fig{ margin:0 0 2.6mm; }
+  .fig img{ display:block; width:100%; height:auto; border:.75pt solid var(--paper-border); }
+  .fig.wide{ column-span:all; }
+  .fig.wide img{ max-width:132mm; margin:0 auto; }
+
+  .empty-state{ width:210mm; padding:4rem 2rem; text-align:center; color:var(--ink-faint); font-size:var(--fs-sm); }
+  .loading{ padding:5rem 1rem; text-align:center; color:var(--ink-faint); font-size:var(--fs-sm); letter-spacing:.02em; }
+
+  /* ---------------- table-of-contents ---------------- */
+  .toc-title{ column-span:all; font-family:var(--font-display); font-weight:900; font-size:19pt; color:var(--paper-ink); margin:0 0 7mm; letter-spacing:.02em; }
+  .toc-part{
+    break-after:avoid-column; break-inside:avoid-column;
+    font-family:var(--font-display); font-weight:800; font-size:13.5pt; color:var(--paper-line);
+    border-bottom:1.6pt solid var(--paper-line); padding-bottom:1.8mm; margin:6mm 0 3mm;
+  }
+  .toc-title + .toc-part{ margin-top:0; }
+  .toc-l1{
+    display:flex; align-items:baseline; gap:1.4mm; break-inside:avoid-column;
+    font-family:var(--font-display); font-weight:700; font-size:9.6pt; color:var(--paper-ink);
+    margin:2.6mm 0 .9mm;
+  }
+  .toc-h1{
+    display:flex; align-items:baseline; gap:1.4mm; break-inside:avoid-column;
+    font-size:8.2pt; color:var(--paper-ink-soft); margin:0 0 .9mm 4mm;
+  }
+  .toc-label{ flex:0 1 auto; min-width:0; word-break:keep-all; }
+  .toc-leader{ flex:1 1 auto; min-width:4mm; border-bottom:1pt dotted var(--paper-border); height:0; align-self:end; margin-bottom:1mm; }
+  .toc-pg{ font-variant-numeric:tabular-nums; flex:0 0 auto; }
+
+  /* ---------------- responsive scale-to-fit (viewport only; never re-wraps text) --- */
+  @media (max-width: 900px){
+    .stage{ padding:1.2rem .6rem 4rem; }
+  }
+</style>
+
+<div class="toolbar">
+  <div class="brand">
+    <span class="brand-mark">📘 정치경제 교재</span>
+    <span class="brand-sub">TIS 종과 기초반 · 표지연 선생님 — 정치 · 경제</span>
+  </div>
+  <div class="nav-jump">
+    <button class="btn btn-ghost" data-jump="toc" type="button">차례</button>
+    <button class="btn btn-ghost" data-jump="part1" type="button">파트1 정치</button>
+    <button class="btn btn-ghost" data-jump="part2" type="button">파트2 경제</button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="loading" id="loading">교재를 조판하는 중…</div>
+</div>
+
+<script id="content-data" type="application/json">/*__CONTENT_JSON__*/</script>
+<script id="images-meta-data" type="application/json">/*__IMAGES_META__*/</script>
+<script id="images-src-data" type="application/json">/*__IMAGES_DATA__*/</script>
+
+<script>
+(function(){
+  "use strict";
+
+  // pages known (from DESIGN_SPEC.md) to contain vector-drawn tables that
+  // the automatic extraction could not capture as structured rows/columns —
+  // their text still renders, just as flowing paragraphs instead of a table.
+  var TABLE_PAGES = new Set([3,5,15,18,20,21,22,23,24,26,30,31,33,37,40,44,45,46,47,48,49,50]);
+
+  var CONTENT = JSON.parse(document.getElementById("content-data").textContent).pages;
+  var IMAGES_META = JSON.parse(document.getElementById("images-meta-data").textContent);
+  var IMAGES_SRC = JSON.parse(document.getElementById("images-src-data").textContent);
+
+  var imagesByPage = {};
+  IMAGES_META.forEach(function(im){
+    (imagesByPage[im.page] = imagesByPage[im.page] || []).push(im);
+  });
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  function flattenItems(pageObj){
+    var out = [];
+    pageObj.blocks.forEach(function(b){ b.items.forEach(function(it){ out.push(it); }); });
+    return out;
+  }
+
+  function stripLeadNumber(t){
+    return String(t||"").replace(/^\s*\d+\s*/, "");
+  }
+
+  // H1 "colon rule": bold the lead clause up through a colon only when a
+  // substantial explanatory clause follows it; a short title-style H1
+  // (no colon, or only a trailing parenthetical) stays bold throughout.
+  function renderH1Text(text){
+    var idx = -1, colonLen = 1;
+    var iHalf = text.indexOf(":"), iFull = text.indexOf("：");
+    if(iHalf >= 0 && (iFull < 0 || iHalf < iFull)){ idx = iHalf; }
+    else if(iFull >= 0){ idx = iFull; }
+    if(idx >= 0 && (text.length - idx - colonLen) > 6){
+      var lead = text.slice(0, idx+colonLen);
+      var rest = text.slice(idx+colonLen);
+      return '<span class="lead">'+esc(lead)+'</span><span class="rest">'+esc(rest)+'</span>';
+    }
+    return '<span class="lead">'+esc(text)+'</span>';
+  }
+
+  function renderFigs(pageNo){
+    var ims = imagesByPage[pageNo];
+    if(!ims || !ims.length) return "";
+    var html = '<div class="figs">';
+    ims.slice().sort(function(a,b){
+      if(a.column !== b.column) return a.column === "left" ? -1 : 1;
+      return a.file < b.file ? -1 : (a.file > b.file ? 1 : 0);
+    }).forEach(function(im){
+      var wide = (im.w / im.h) > 1.55;
+      var src = IMAGES_SRC[im.file];
+      if(!src) return;
+      html += '<figure class="fig'+(wide?' wide':'')+'"><img src="'+src+'" alt="자료 이미지" loading="lazy"></figure>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // ---------------- flatten the whole book into one ordered stream of
+  // atomic, page-break-able "units" — original content.json page
+  // boundaries are an old-PDF artifact (a part can end and the next one
+  // begin on the very same source page) and are deliberately NOT treated
+  // as new-page boundaries here; real pagination happens later, driven by
+  // how much actually fits in this design's larger, two-column layout. ----
+  var tocEntries = []; // [{text,l1s:[{text,h1s:[{text,id,bodyPage}],id,bodyPage}],id,bodyPage}]
+  var tocEntryById = {};
+  var tocIdSeq = 0;
+  function buildUnits(){
+    var units = [];
+    var curPart = null, curL1 = null;
+    var curPartEntry = null, curL1Entry = null;
+
+    CONTENT.forEach(function(pageObj){
+      var items = flattenItems(pageObj);
+      for(var i=0;i<items.length;i++){
+        var it = items[i];
+        if(it.marker === "PART"){
+          curPart = it.text;
+          curL1 = null; // a new part has no "current L1" yet — don't carry the old part's over
+          curL1Entry = null;
+          var pid = "t"+(tocIdSeq++);
+          curPartEntry = { text: it.text, l1s: [], id: pid };
+          tocEntryById[pid] = curPartEntry;
+          tocEntries.push(curPartEntry);
+          units.push({ html: '<div class="part-banner" data-toc-id="'+pid+'">'+esc(it.text)+'</div>', state:{part:curPart,l1:curL1}, forceBreak:true });
+        } else if(it.marker === "L1"){
+          curL1 = stripLeadNumber(it.text);
+          if(!curPartEntry){ curPartEntry = { text:"", l1s:[] }; tocEntries.push(curPartEntry); }
+          var lid = "t"+(tocIdSeq++);
+          curL1Entry = { text: curL1, h1s: [], id: lid };
+          tocEntryById[lid] = curL1Entry;
+          curPartEntry.l1s.push(curL1Entry);
+          units.push({ html: '<h2 class="l1" data-toc-id="'+lid+'">'+esc(curL1)+'</h2>', state:{part:curPart,l1:curL1}, avoidOrphan:true });
+        } else if(it.marker === "H1"){
+          var hid = "t"+(tocIdSeq++);
+          var h1Entry = { text: it.text.replace(/\s*[:：].*$/,""), id: hid };
+          tocEntryById[hid] = h1Entry;
+          if(curL1Entry) curL1Entry.h1s.push(h1Entry); // an H1 before any L1 never happens in practice, but if
+          // it did, h1Entry would simply have no TOC row — its body text still renders either way.
+          units.push({
+            html: '<h3 class="h1" data-toc-id="'+hid+'"><span class="bullet">'+esc(it.symbol||"")+'</span>'+renderH1Text(it.text)+'</h3>',
+            state:{part:curPart,l1:curL1}
+          });
+        } else if(it.marker === "H2"){
+          units.push({ html: '<h4 class="h2"><span class="bullet">'+esc(it.symbol||"○")+'</span>'+esc(it.text)+'</h4>', state:{part:curPart,l1:curL1} });
+        } else if(it.marker === "H3"){
+          units.push({ html: '<h5 class="h3"><span class="bullet">'+esc(it.symbol||"◎")+'</span>'+esc(it.text)+'</h5>', state:{part:curPart,l1:curL1} });
+        } else if(it.marker === "NOTE"){
+          units.push({ html: '<p class="note"><span class="bullet">'+esc(it.symbol||"※")+'</span>'+esc(it.text)+'</p>', state:{part:curPart,l1:curL1} });
+        } else if(it.marker === "TOPIC"){
+          var title = it.text.replace(/^\s*TOPIC\s*[:：]\s*/, "");
+          var body = "";
+          var j = i+1;
+          while(j < items.length && items[j].marker === "TEXT"){ body += '<p class="text">'+esc(items[j].text)+'</p>'; j++; }
+          units.push({ html: '<div class="topic"><span class="chip">TOPIC</span><span class="topic-title">'+esc(title)+'</span>'+body+'</div>', state:{part:curPart,l1:curL1} });
+          i = j-1;
+        } else { // TEXT
+          units.push({ html: '<p class="text">'+esc(it.text)+'</p>', state:{part:curPart,l1:curL1} });
+        }
+      }
+      var figHtml = renderFigs(pageObj.page);
+      if(figHtml) units.push({ html: figHtml, state:{part:curPart,l1:curL1} });
+    });
+    return units;
+  }
+
+  // ---------------- pagination engine ----------------
+  // Pages are built into an off-screen (visibility:hidden, still laid out
+  // and measurable) scratch area first — units are appended one at a time
+  // and, the moment a page's two-column content actually overflows its
+  // fixed printable area, the last unit is moved to a fresh page instead.
+  // This guarantees no content is ever silently clipped or shrunk away,
+  // unlike scaling a fixed 1-source-page-per-output-page layout to fit.
+  var scratch = document.createElement("div");
+  scratch.style.cssText = "position:absolute; visibility:hidden; top:0; left:0; pointer-events:none;";
+  document.body.appendChild(scratch);
+
+  function buildPageShell(){
+    var frame = document.createElement("div");
+    frame.className = "page-frame";
+    var page = document.createElement("div");
+    page.className = "page";
+    frame.appendChild(page);
+    return { frame: frame, page: page };
+  }
+
+  function makeBodyPage(state){
+    var shell = buildPageShell();
+    var inner = document.createElement("div");
+    inner.className = "page-inner";
+    var pagenoEl = document.createElement("span");
+    pagenoEl.className = "pageno";
+    var crumbEl = document.createElement("span");
+    crumbEl.className = "crumb";
+    crumbEl.innerHTML = esc(state.part||"") + (state.l1 ? '<span class="sep">·</span>'+esc(state.l1) : "");
+    var kicker = document.createElement("div");
+    kicker.className = "page-kicker";
+    kicker.appendChild(crumbEl);
+    kicker.appendChild(pagenoEl);
+    var contentWrap = document.createElement("div");
+    contentWrap.className = "page-content";
+    var contentInner = document.createElement("div");
+    contentInner.className = "page-content-inner";
+    contentWrap.appendChild(contentInner);
+    var footer = document.createElement("div");
+    footer.className = "page-footer";
+    footer.innerHTML = '<span>표지연 선생님 · TIS 종과 기초반</span><span>'+esc(state.part||"")+'</span>';
+    inner.appendChild(kicker); inner.appendChild(contentWrap); inner.appendChild(footer);
+    shell.page.appendChild(inner);
+    scratch.appendChild(shell.frame);
+    return { frame: shell.frame, contentWrap: contentWrap, contentInner: contentInner, pagenoEl: pagenoEl };
+  }
+
+  function makeTocPage(index){
+    var shell = buildPageShell();
+    var inner = document.createElement("div");
+    inner.className = "page-inner";
+    var pagenoEl = document.createElement("span");
+    pagenoEl.className = "pageno";
+    pagenoEl.textContent = String(index+1);
+    var kicker = document.createElement("div");
+    kicker.className = "page-kicker";
+    kicker.innerHTML = '<span class="crumb">차례</span>';
+    kicker.appendChild(pagenoEl);
+    var contentWrap = document.createElement("div");
+    contentWrap.className = "page-content";
+    var contentInner = document.createElement("div");
+    contentInner.className = "page-content-inner";
+    if(index === 0){ contentInner.innerHTML = '<h1 class="toc-title">차례 · Contents</h1>'; }
+    contentWrap.appendChild(contentInner);
+    var footer = document.createElement("div");
+    footer.className = "page-footer";
+    footer.innerHTML = '<span>표지연 선생님 · TIS 종과 기초반</span><span>차례</span>';
+    inner.appendChild(kicker); inner.appendChild(contentWrap); inner.appendChild(footer);
+    shell.page.appendChild(inner);
+    shell.frame.dataset.toc = "1";
+    scratch.appendChild(shell.frame);
+    return { frame: shell.frame, contentWrap: contentWrap, contentInner: contentInner };
+  }
+
+  function overflowed(rec){
+    return rec.contentInner.getBoundingClientRect().height > rec.contentWrap.getBoundingClientRect().height + 0.5;
+  }
+
+  // Appends `unit.html` (always exactly one top-level element) to the
+  // current page; if that overflows the page, the element is removed and
+  // re-appended to a freshly created page instead. `avoidOrphan` additionally
+  // pre-empts a heading landing alone at the very bottom of a page by
+  // breaking before it whenever the page is already mostly full.
+  function placeUnit(pages, cur, unit, pageFactory){
+    if(unit.forceBreak && cur.contentInner.children.length > 0){
+      cur = pageFactory();
+      pages.push(cur);
+    } else if(unit.avoidOrphan && cur.contentInner.children.length > 0){
+      var usedRatio = cur.contentInner.getBoundingClientRect().height / cur.contentWrap.getBoundingClientRect().height;
+      if(usedRatio > 0.86){
+        cur = pageFactory();
+        pages.push(cur);
+      }
+    }
+    cur.contentInner.insertAdjacentHTML("beforeend", unit.html);
+    if(cur.contentInner.children.length > 1 && overflowed(cur)){
+      cur.contentInner.removeChild(cur.contentInner.lastElementChild);
+      cur = pageFactory();
+      pages.push(cur);
+      cur.contentInner.insertAdjacentHTML("beforeend", unit.html);
+    }
+    return cur;
+  }
+
+  function paginateBody(units){
+    var pages = [];
+    var cur = makeBodyPage(units.length ? units[0].state : {});
+    pages.push(cur);
+    units.forEach(function(u){
+      cur = placeUnit(pages, cur, u, function(){ return makeBodyPage(u.state); });
+    });
+    return pages;
+  }
+
+  function buildTocUnits(){
+    var units = [];
+    tocEntries.forEach(function(part){
+      units.push({ html: '<div class="toc-part">'+esc(part.text)+'</div>', forceBreak:false, entryRef: part });
+      part.l1s.forEach(function(l1){
+        units.push({
+          html: '<div class="toc-l1"><span class="toc-label">'+esc(l1.text)+'</span><span class="toc-leader"></span><span class="toc-pg">'+
+            (l1.bodyPage||"")+'</span></div>',
+          entryRef: l1
+        });
+        l1.h1s.forEach(function(h1){
+          if(!h1) return;
+          units.push({
+            html: '<div class="toc-h1"><span class="toc-label">'+esc(h1.text)+'</span><span class="toc-leader"></span><span class="toc-pg">'+
+              (h1.bodyPage||"")+'</span></div>',
+            entryRef: h1
+          });
+        });
+      });
+    });
+    return units;
+  }
+
+  function paginateToc(units){
+    var pages = [];
+    var cur = makeTocPage(0);
+    pages.push(cur);
+    units.forEach(function(u){
+      cur = placeUnit(pages, cur, u, function(){ return makeTocPage(pages.length); });
+      if(u.entryRef) u.entryRef.tocPgEl = cur.contentInner.lastElementChild.querySelector(".toc-pg");
+    });
+    return pages;
+  }
+
+  // ---------------- assembly ----------------
+  var stage = document.getElementById("stage");
+
+  function build(){
+    scratch.innerHTML = "";
+    tocEntries = [];
+    tocEntryById = {};
+    tocIdSeq = 0;
+
+    var units = buildUnits();
+    var bodyPages = paginateBody(units);
+
+    // each heading unit carries a data-toc-id stamped at build time; once
+    // pagination has settled where it actually landed, look it straight up —
+    // robust regardless of how any single heading's placement moved around.
+    bodyPages.forEach(function(rec, pIdx){
+      rec.contentInner.querySelectorAll("[data-toc-id]").forEach(function(node){
+        var entry = tocEntryById[node.getAttribute("data-toc-id")];
+        if(entry) entry.bodyPage = pIdx;
+      });
+    });
+
+    var tocUnits = buildTocUnits();
+    var tocPages = paginateToc(tocUnits);
+    var tocCount = tocPages.length;
+
+    // patch final page numbers now that both the TOC's own length and the
+    // body's per-heading page indices are known.
+    tocEntries.forEach(function(part){
+      part.l1s.forEach(function(l1){
+        if(l1.tocPgEl) l1.tocPgEl.textContent = tocCount + (l1.bodyPage||0) + 1;
+        l1.h1s.forEach(function(h1){
+          if(h1 && h1.tocPgEl) h1.tocPgEl.textContent = tocCount + (h1.bodyPage||0) + 1;
+        });
+      });
+    });
+    bodyPages.forEach(function(rec, idx){
+      rec.pagenoEl.textContent = (tocCount+idx+1) + ' / ' + (tocCount+bodyPages.length);
+    });
+
+    // move the finished pages, in true reading order, into the visible stage
+    stage.innerHTML = "";
+    tocPages.forEach(function(rec){ stage.appendChild(rec.frame); });
+    bodyPages.forEach(function(rec){ stage.appendChild(rec.frame); });
+  }
+
+  if(document.fonts && document.fonts.ready){
+    document.fonts.load("400 12px 'Noto Sans KR'");
+    document.fonts.load("700 12px 'Noto Sans KR'");
+    document.fonts.ready.then(build).catch(build);
+  } else {
+    build();
+  }
+
+  document.querySelector(".nav-jump").addEventListener("click", function(e){
+    var btn = e.target.closest("[data-jump]");
+    if(!btn) return;
+    var key = btn.getAttribute("data-jump");
+    var target = null;
+    if(key === "toc"){ target = stage.querySelector('.page-frame[data-toc="1"]'); }
+    else {
+      var wantText = key === "part1" ? "파트1" : "파트2";
+      var banners = stage.querySelectorAll(".part-banner");
+      for(var i=0;i<banners.length;i++){
+        if(banners[i].textContent.indexOf(wantText) === 0){ target = banners[i].closest(".page-frame"); break; }
+      }
+    }
+    if(target) target.scrollIntoView({ behavior:"smooth", block:"start" });
+  });
+})();
+</script>
