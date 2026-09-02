@@ -369,13 +369,19 @@
     return html;
   }
 
+  // Every figure in this book renders at single-column width except the
+  // 국가/영토 diagram (territorial-waters cross-section) — wide enough,
+  // and simple enough at that width, to be the one real exception; every
+  // other "wide" image turned out too small to read once shrunk sideways.
+  var WIDE_ALLOWED = { "page01_img1.png": true };
+
   function renderFigs(pageNo){
     var ims = (imagesByPage[pageNo]||[]).filter(function(im){ return !overriddenFiles[im.file]; });
     if(!ims.length) return "";
     ims = ims.slice().sort(function(a,b){
       if(a.column !== b.column) return a.column === "left" ? -1 : 1;
       return a.file < b.file ? -1 : (a.file > b.file ? 1 : 0);
-    });
+    }).map(function(im){ return Object.assign({}, im, { narrow: !WIDE_ALLOWED[im.file] }); });
     return figuresHtml(ims);
   }
 
@@ -468,7 +474,25 @@
       { prefix: "사법과 재판소 ", heading: "사법과 재판소", marker: "L1" },
       { prefix: "재판소의 지위", heading: "재판소의 지위", marker: "H1", symbol: "●" },
       { prefix: "정당과 선거 ", heading: "정당과 선거", marker: "L1" },
-      { prefix: "1. 의회 정치와 정당 ", heading: "의회 정치와 정당", marker: "H1", symbol: "■" }
+      { prefix: "1. 의회 정치와 정당 ", heading: "의회 정치와 정당", marker: "H1", symbol: "■" },
+      { prefix: "③ 금융의 구조 ", heading: "금융의 구조", marker: "H1", symbol: "③" },
+      { prefix: "● 금융의 역할 ", heading: "금융의 역할", marker: "H1", symbol: "●" },
+      { prefix: "④ 금융기관과 그 기능 ", heading: "금융기관과 그 기능", marker: "H1", symbol: "④" },
+      { prefix: "● 은행의 업무 ", heading: "은행의 업무", marker: "H1", symbol: "●" },
+      { prefix: "경제사회의 변화와 현대 경제의 구조 ", heading: "경제사회의 변화와 현대 경제의 구조", marker: "L1" },
+      { prefix: "1. 재정의 구조와 역할 ■ ", heading: "재정의 구조와 역할", marker: "H1", symbol: "■" },
+      { prefix: "3. 조세의 구조 ", heading: "조세의 구조", marker: "H1", symbol: "■" },
+      { prefix: "○ 세입의 중심은 조세 ", heading: "세입의 중심은 조세", marker: "H2", symbol: "○" },
+      { prefix: "국채 의존도의 증가 ", heading: "국채 의존도의 증가", marker: "H1", symbol: "■" },
+      { prefix: "○ 국채 발행 추이 ", heading: "국채 발행 추이", marker: "H2", symbol: "○" },
+      { prefix: "노동시간과 휴일 - ", heading: "노동시간과 휴일", marker: "H1", symbol: "■" },
+      { prefix: "〇 노동시간 ", heading: "노동시간", marker: "H2", symbol: "〇" },
+      { prefix: "노동조합 - ", heading: "노동조합", marker: "H1", symbol: "■" },
+      { prefix: "〇 조합 활동의 법적 보장 ", heading: "조합 활동의 법적 보장", marker: "H2", symbol: "〇" },
+      { prefix: "사회 보장과 복지 - ", heading: "사회 보장과 복지", marker: "H1", symbol: "■" },
+      { prefix: "1. 실업보험의 도입 ", heading: "실업보험의 도입", marker: "H2", symbol: "○" },
+      { prefix: "2. 사회보장의 권리화 - ", heading: "사회보장의 권리화", marker: "H2", symbol: "○" },
+      { prefix: "○ 개인의 책임에서 사회적 문제로 ", heading: "개인의 책임에서 사회적 문제로", marker: "H3", symbol: "○" }
     ];
 
     // The original PDF drew this comparison as a vector table (no text
