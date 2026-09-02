@@ -177,6 +177,10 @@
   .topic .topic-title{ font-weight:700; font-size:9.3pt; }
   .topic .text{ margin-top:1.6mm; }
 
+  .tbl{ width:100%; border-collapse:collapse; margin:2mm 0 3mm; font-size:8.4pt; line-height:1.4; break-inside:avoid-column; }
+  .tbl th, .tbl td{ border:.75pt solid var(--paper-border); padding:1.4mm 2mm; text-align:left; vertical-align:top; }
+  .tbl th{ background:var(--paper-band); font-weight:700; font-family:var(--font-display); }
+
   .figs{ break-inside:avoid-column; margin:2mm 0 3mm; }
   .fig{ margin:0 0 2.6mm; }
   .fig img{ display:block; width:100%; height:auto; border:.75pt solid var(--paper-border); }
@@ -15253,11 +15257,24 @@
     "국가": [{ file: "page01_img1.png" }],
     "법의 분류": [{ file: "page02_img2.png", narrow: true }],
     "역사적 분류": [{ file: "page02_img1.png", narrow: true }],
-    "일본의 정치 구조와 권력분립": [{ file: "page14_img1.png", narrow: true }]
+    "일본의 정치 구조와 권력분립": [{ file: "page14_img1.png", narrow: true }],
+    "조약의 승인": [{ file: "page15_img1.png", narrow: true }],
+    "내각의 총사직": [{ file: "page17_img3.png", narrow: true }]
+  };
+  // Anchored to the exact text of a TEXT paragraph rather than a heading —
+  // for images that belong right after a specific sentence, not a section
+  // title (e.g. the two 중의원 해산 diagrams that illustrate the "…총사직한
+  // 사례도 있음." aside rather than the "내각의 총사직" heading itself).
+  var IMAGE_AFTER_PARAGRAPH = {
+    "내각총리대신이 결원되었을 때 중의원 불신임 결의 후 10일 이내에 해산이 없는 경우 중의원 총선거 후 첫 국회 소집 시 (→ 새 총리 지명 필요) *과거에는 총리의 질병, 중대한 법안 부결, 장관의 부패 사건 등으로 총사직 한 사례도 있음.":
+      [{ file: "page17_img1.png", narrow: true }, { file: "page17_img2.png", narrow: true }]
   };
   var overriddenFiles = {};
   Object.keys(IMAGE_AFTER_TEXT).forEach(function(k){
     IMAGE_AFTER_TEXT[k].forEach(function(o){ overriddenFiles[o.file] = true; });
+  });
+  Object.keys(IMAGE_AFTER_PARAGRAPH).forEach(function(k){
+    IMAGE_AFTER_PARAGRAPH[k].forEach(function(o){ overriddenFiles[o.file] = true; });
   });
   var imageByFile = {};
   IMAGES_META.forEach(function(im){ imageByFile[im.file] = im; });
@@ -15320,7 +15337,8 @@
     if(!ims || !ims.length) return "";
     var html = '<div class="figs">';
     ims.forEach(function(im){
-      var wide = !forceNarrow && (im.w / im.h) > 1.55;
+      var narrow = im.narrow !== undefined ? im.narrow : forceNarrow;
+      var wide = !narrow && (im.w / im.h) > 1.55;
       var src = IMAGES_SRC[im.file];
       if(!src) return;
       html += '<figure class="fig'+(wide?' wide':'')+'"><img src="'+src+'" alt="자료 이미지" loading="lazy"></figure>';
@@ -15342,14 +15360,19 @@
   // Renders any images overridden to anchor right after this exact heading
   // or note text — narrow ones are rendered one at a time (each its own
   // single-column figure) so two of them don't get crammed side by side.
-  function renderImageOverride(text){
-    var overrides = IMAGE_AFTER_TEXT[text];
+  // Builds ONE combined <div class="figs"> for the whole override group —
+  // never several sibling divs — since every unit's html must be exactly
+  // one top-level element for the pagination engine's overflow handling.
+  function renderOverrideList(overrides){
     if(!overrides) return "";
-    return overrides.map(function(o){
+    var ims = overrides.map(function(o){
       var im = imageByFile[o.file];
-      return im ? figuresHtml([im], o.narrow) : "";
-    }).join("");
+      return im ? Object.assign({}, im, { narrow: !!o.narrow }) : null;
+    }).filter(Boolean);
+    return figuresHtml(ims);
   }
+  function renderImageOverride(text){ return renderOverrideList(IMAGE_AFTER_TEXT[text]); }
+  function renderImageOverrideForParagraph(text){ return renderOverrideList(IMAGE_AFTER_PARAGRAPH[text]); }
 
   // ---------------- flatten the whole book into one ordered stream of
   // atomic, page-break-able "units" — original content.json page
@@ -15360,6 +15383,8 @@
   var tocEntries = []; // [{text,l1s:[{text,h1s:[{text,id,bodyPage}],id,bodyPage}],id,bodyPage}]
   var tocEntryById = {};
   var tocIdSeq = 0;
+  var TABLE_HTML_PARTY_COMPARISON = "<table class=\"tbl\"><tr><th>항목</th><th>명망가 정당 (19세기)</th><th>대중 정당 (20세기 이후)</th></tr><tr><td>제도</td><td>제한 선거제</td><td>보통 선거제</td></tr><tr><td>구성</td><td>지역의 ‘재산과 교양’을 갖춘 명망가 중심</td><td>노동자 등 대중이 참여하는 대표정당</td></tr><tr><td>조직</td><td>정당 강령 없음, 살롱형 클럽 중심</td><td>강령과 규약을 갖춘 강한 정당 규율</td></tr><tr><td>활동 방식</td><td>국회의원 중심 활동</td><td>정당 조직을 통한 대중의 일상적 정치 참여</td></tr></table>";
+
   function buildUnits(){
     var units = [];
     var curPart = null, curL1 = null;
@@ -15393,7 +15418,8 @@
       "2 영국의 정치 체제": { marker: "H1", symbol: "●", text: "영국의 정치 체제" },
       "3 미국의 정치 체제": { marker: "H1", symbol: "●", text: "미국의 정치 체제" },
       "4 프랑스·러시아·중국의 정치 체제": { marker: "H1", symbol: "●", text: "프랑스·러시아·중국의 정치 체제" },
-      "5 개발독재와 이슬람 국가의 정치 체제": { marker: "H1", symbol: "●", text: "개발독재와 이슬람 국가의 정치 체제" }
+      "5 개발독재와 이슬람 국가의 정치 체제": { marker: "H1", symbol: "●", text: "개발독재와 이슬람 국가의 정치 체제" },
+      "조약의 승인 (条約の承認)": { text: "조약의 승인" }
     };
 
     // Same underlying problem, different shape: here the heading text wasn't
@@ -15416,13 +15442,48 @@
       { prefix: "3. 사법부와 입법·행정부의 관계 ", heading: "사법부와 입법·행정부의 관계", marker: "H1", symbol: "■" },
       { prefix: "일본의 지방분권 ", heading: "일본의 지방분권", marker: "H1", symbol: "■" },
       { prefix: "② 국회의 지위 ", heading: "국회의 지위", marker: "H1", symbol: "■" },
-      { prefix: "■ 의회란 무엇인가 ", heading: "의회란 무엇인가", marker: "H1", symbol: "■" }
+      { prefix: "■ 의회란 무엇인가 ", heading: "의회란 무엇인가", marker: "H1", symbol: "■" },
+      { prefix: "사법과 재판소 ", heading: "사법과 재판소", marker: "L1" },
+      { prefix: "재판소의 지위", heading: "재판소의 지위", marker: "H1", symbol: "●" },
+      { prefix: "정당과 선거 ", heading: "정당과 선거", marker: "L1" },
+      { prefix: "1. 의회 정치와 정당 ", heading: "의회 정치와 정당", marker: "H1", symbol: "■" }
+    ];
+
+    // The original PDF drew this comparison as a vector table (no text
+    // extraction captures its grid), so its cell text came through as 6
+    // separate, oddly-split TEXT fragments in reading order. Matching that
+    // exact run and replacing it with a real <table> is a one-off fix, not
+    // a general table-detection mechanism.
+    var TABLE_SEQUENCES = [
+      {
+        matchTexts: [
+          "항목 명망가 정당 (19세기) 대중 정당 (20세기 이후) 제도 제한 선거제 보통 선거제 구성 지역의 ‘재산과 교양’을 갖 춘 명망가 중심",
+          "노동자 등 대중이 참여하는 대표",
+          "정당 조직정당 강령 없음, 살롱형 클",
+          "럽 중심",
+          "강령과 규약을 갖춘 강한 정당 규율",
+          "활동 방식국회의원 중심 활동 정당 조직을 통한 대중의 일상적 정치 참여"
+        ],
+        html: TABLE_HTML_PARTY_COMPARISON
+      }
     ];
 
     var items = [];
     CONTENT.forEach(function(pageObj){
-      flattenItems(pageObj).forEach(function(it){
-        if(SKIP_ITEM_TEXTS[it.text]) return;
+      var pageItems = flattenItems(pageObj);
+      for(var pi=0; pi<pageItems.length; pi++){
+        var it = pageItems[pi];
+
+        var seq = TABLE_SEQUENCES.find(function(s){
+          return s.matchTexts.every(function(t, k){ return pageItems[pi+k] && pageItems[pi+k].text === t; });
+        });
+        if(seq){
+          items.push({ it: { marker: "TABLE", symbol: null, text: "", html: seq.html }, page: pageObj.page });
+          pi += seq.matchTexts.length - 1;
+          continue;
+        }
+
+        if(SKIP_ITEM_TEXTS[it.text]) continue;
         var patch = RECLASSIFY[it.text];
         if(patch) it = Object.assign({}, it, patch);
 
@@ -15436,10 +15497,10 @@
         if(extracted.length){
           extracted.forEach(function(h){ items.push({ it: { marker: h.marker, symbol: h.symbol, text: h.text }, page: pageObj.page }); });
           if(rest) items.push({ it: { marker: "TEXT", symbol: null, text: rest }, page: pageObj.page });
-          return;
+          continue;
         }
         items.push({ it: it, page: pageObj.page });
-      });
+      }
     });
 
     var lastPage = null;
@@ -15453,7 +15514,9 @@
       var it = items[i].it;
       if(items[i].page !== lastPage){ flushPageFigs(); lastPage = items[i].page; }
 
-      if(it.marker === "PART"){
+      if(it.marker === "TABLE"){
+        units.push({ html: it.html, state:{part:curPart,l1:curL1} });
+      } else if(it.marker === "PART"){
         curPart = it.text;
         curL1 = null; // a new part has no "current L1" yet — don't carry the old part's over
         curL1Entry = null;
@@ -15532,6 +15595,8 @@
         splitEnumerated(textAcc).forEach(function(seg){
           units.push({ html: '<p class="text">'+esc(seg)+'</p>', state:{part:curPart,l1:curL1} });
         });
+        var overrideFigHtml4 = renderImageOverrideForParagraph(textAcc);
+        if(overrideFigHtml4) units.push({ html: overrideFigHtml4, state:{part:curPart,l1:curL1} });
         i = m-1;
       }
     }
