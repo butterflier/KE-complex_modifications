@@ -15390,12 +15390,29 @@
       "5 개발독재와 이슬람 국가의 정치 체제": { marker: "H1", symbol: "●", text: "개발독재와 이슬람 국가의 정치 체제" }
     };
 
+    // Same underlying problem, different shape: here the heading text wasn't
+    // even split into its own item — it's the opening words of a TEXT
+    // paragraph ("2. 권력분립과 간접민주제 민주정치의 목적은…"). Splitting off
+    // the matched prefix as its own heading and leaving the rest as the
+    // paragraph that follows it fixes that without touching anything else
+    // in the item.
+    var EMBEDDED_HEADINGS = [
+      { prefix: "2. 권력분립과 간접민주제 ", heading: "권력분립과 간접민주제", marker: "H1", symbol: "■" }
+    ];
+
     var items = [];
     CONTENT.forEach(function(pageObj){
       flattenItems(pageObj).forEach(function(it){
         if(SKIP_ITEM_TEXTS[it.text]) return;
         var patch = RECLASSIFY[it.text];
         if(patch) it = Object.assign({}, it, patch);
+
+        var embedded = EMBEDDED_HEADINGS.find(function(e){ return it.text.indexOf(e.prefix) === 0; });
+        if(embedded){
+          items.push({ it: { marker: embedded.marker, symbol: embedded.symbol, text: embedded.heading }, page: pageObj.page });
+          items.push({ it: { marker: "TEXT", symbol: null, text: it.text.slice(embedded.prefix.length) }, page: pageObj.page });
+          return;
+        }
         items.push({ it: it, page: pageObj.page });
       });
     });
