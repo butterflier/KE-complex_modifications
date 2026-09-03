@@ -217,8 +217,6 @@
   .figs{ break-inside:avoid-column; margin:2mm 0 3mm; }
   .fig{ margin:0 0 2.6mm; }
   .fig img{ display:block; width:100%; height:auto; border:.75pt solid var(--paper-border); }
-  .fig.wide{ column-span:all; }
-  .fig.wide img{ max-width:132mm; margin:0 auto; }
 
   .empty-state{ width:210mm; padding:4rem 2rem; text-align:center; color:var(--ink-faint); font-size:var(--fs-sm); }
   .loading{ padding:5rem 1rem; text-align:center; color:var(--ink-faint); font-size:var(--fs-sm); letter-spacing:.02em; }
@@ -311,7 +309,7 @@
   // the key, instead of at the end of their filed page — optionally forced
   // to single-column width instead of the usual wide/aspect-ratio guess.
   var IMAGE_AFTER_TEXT = {
-    "국가": [{ file: "page01_img1.png" }],
+    "국가": [{ file: "page01_img1.png", narrow: true }],
     "법의 분류": [{ file: "page02_img2.png", narrow: true }],
     "역사적 분류": [{ file: "page02_img1.png", narrow: true }],
     "일본의 정치 구조와 권력분립": [{ file: "page14_img1.png", narrow: true }],
@@ -434,12 +432,19 @@
     return '<span class="lead">'+esc(text)+'</span>';
   }
 
-  function figuresHtml(ims, forceNarrow){
+  // Every figure in this book renders at single-column width — the
+  // pagination engine works entirely in two explicit left/right columns
+  // (see createRow()/appendUnit() below), so a figure spanning both would
+  // need its own "fullWidth" unit type the way an L1 heading briefly did;
+  // that meant closing out and rebalancing whatever row it interrupted,
+  // which chased a long tail of edge cases for comparatively little
+  // payoff (every wide image tried in this book was too small to read
+  // once shrunk sideways anyway). Keeping every figure a plain in-column
+  // unit keeps the whole engine simpler for the next textbook to reuse.
+  function figuresHtml(ims){
     if(!ims || !ims.length) return "";
     var html = '<div class="figs">';
     ims.forEach(function(im){
-      var narrow = im.narrow !== undefined ? im.narrow : forceNarrow;
-      var wide = !narrow && (im.w / im.h) > 1.55;
       var src = IMAGES_SRC[im.file];
       if(!src) return;
       // NOT loading="lazy": these are already-embedded base64 data: URIs
@@ -451,25 +456,11 @@
       // concludes the page has room, and the image only reveals its real
       // size (and overflows the fixed page box) once it finally loads
       // after being scrolled into view for real.
-      html += '<figure class="fig'+(wide?' wide':'')+'"><img src="'+src+'" alt="자료 이미지"></figure>';
+      html += '<figure class="fig"><img src="'+src+'" alt="자료 이미지"></figure>';
     });
     html += '</div>';
     return html;
   }
-
-  // The one wide figure (spanning both columns) needs its unit marked
-  // fullWidth so the pagination engine appends it directly to the page
-  // instead of into a column — cheaper than threading a second return
-  // value through every renderFigs()/renderImageOverride() call site.
-  function isWideFigHtml(html){
-    return /class="fig wide"/.test(html || "");
-  }
-
-  // Every figure in this book renders at single-column width except the
-  // 국가/영토 diagram (territorial-waters cross-section) — wide enough,
-  // and simple enough at that width, to be the one real exception; every
-  // other "wide" image turned out too small to read once shrunk sideways.
-  var WIDE_ALLOWED = { "page01_img1.png": true };
 
   // Returns one html string PER IMAGE (each its own single top-level
   // element, same invariant as any other unit) rather than one batch
@@ -485,22 +476,18 @@
     ims = ims.slice().sort(function(a,b){
       if(a.column !== b.column) return a.column === "left" ? -1 : 1;
       return a.file < b.file ? -1 : (a.file > b.file ? 1 : 0);
-    }).map(function(im){ return Object.assign({}, im, { narrow: !WIDE_ALLOWED[im.file] }); });
+    });
     return ims.map(function(im){ return figuresHtml([im]); });
   }
 
   // Renders any images overridden to anchor right after this exact heading
-  // or note text — narrow ones are rendered one at a time (each its own
-  // single-column figure) so two of them don't get crammed side by side.
-  // Builds ONE combined <div class="figs"> for the whole override group —
-  // never several sibling divs — since every unit's html must be exactly
-  // one top-level element for the pagination engine's overflow handling.
+  // or note text. Builds ONE combined <div class="figs"> for the whole
+  // override group — never several sibling divs — since every unit's html
+  // must be exactly one top-level element for the pagination engine's
+  // overflow handling.
   function renderOverrideList(overrides){
     if(!overrides) return "";
-    var ims = overrides.map(function(o){
-      var im = imageByFile[o.file];
-      return im ? Object.assign({}, im, { narrow: !!o.narrow }) : null;
-    }).filter(Boolean);
+    var ims = overrides.map(function(o){ return imageByFile[o.file] || null; }).filter(Boolean);
     return figuresHtml(ims);
   }
   function renderImageOverride(text){ return renderOverrideList(IMAGE_AFTER_TEXT[text]); }
@@ -659,7 +646,7 @@
     function flushPageFigs(){
       if(lastPage === null) return;
       renderFigsList(lastPage).forEach(function(figHtml){
-        units.push({ html: figHtml, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(figHtml) });
+        units.push({ html: figHtml, state:{part:curPart,l1:curL1} });
       });
     }
 
@@ -685,9 +672,9 @@
         curL1Entry = { text: curL1, h1s: [], id: lid };
         tocEntryById[lid] = curL1Entry;
         curPartEntry.l1s.push(curL1Entry);
-        units.push({ html: '<h2 class="l1" data-toc-id="'+lid+'">'+esc(curL1)+'</h2>', state:{part:curPart,l1:curL1}, isHeading:true, fullWidth:true });
+        units.push({ html: '<h2 class="l1" data-toc-id="'+lid+'">'+esc(curL1)+'</h2>', state:{part:curPart,l1:curL1}, isHeading:true });
         var overrideFigHtml1 = renderImageOverride(curL1);
-        if(overrideFigHtml1) units.push({ html: overrideFigHtml1, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml1) });
+        if(overrideFigHtml1) units.push({ html: overrideFigHtml1, state:{part:curPart,l1:curL1} });
       } else if(it.marker === "H1"){
         var hid = "t"+(tocIdSeq++);
         var h1TocText = it.text.replace(/\s*[:：].*$/,"");
@@ -700,7 +687,7 @@
           state:{part:curPart,l1:curL1}, isHeading:true
         });
         var overrideFigHtml2 = renderImageOverride(it.text) || renderImageOverride(h1TocText);
-        if(overrideFigHtml2) units.push({ html: overrideFigHtml2, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml2) });
+        if(overrideFigHtml2) units.push({ html: overrideFigHtml2, state:{part:curPart,l1:curL1} });
       } else if(it.marker === "H2"){
         units.push({ html: '<h4 class="h2"><span class="bullet">'+esc(it.symbol||"○")+'</span>'+esc(it.text)+'</h4>', state:{part:curPart,l1:curL1}, isHeading:true });
       } else if(it.marker === "H3"){
@@ -726,7 +713,7 @@
           units.push({ html: '<p class="note"><span class="bullet">'+esc(it.symbol||"※")+'</span>'+esc(noteText)+'</p>', state:{part:curPart,l1:curL1} });
         }
         var overrideFigHtml3 = renderImageOverride(it.text);
-        if(overrideFigHtml3) units.push({ html: overrideFigHtml3, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml3) });
+        if(overrideFigHtml3) units.push({ html: overrideFigHtml3, state:{part:curPart,l1:curL1} });
         i = k-1;
       } else if(it.marker === "TOPIC"){
         // A long TOPIC box (title + several paragraphs) rendering as one
@@ -787,7 +774,7 @@
           });
         }
         var overrideFigHtml4 = renderImageOverrideForParagraph(textAcc);
-        if(overrideFigHtml4) units.push({ html: overrideFigHtml4, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml4) });
+        if(overrideFigHtml4) units.push({ html: overrideFigHtml4, state:{part:curPart,l1:curL1} });
         i = m-1;
       }
     }
@@ -938,12 +925,12 @@
 
   // Appends one unit's element into the page, following the same
   // left-column-then-right-column order a reader's eye follows: `unit.
-  // fullWidth` (a part banner, an L1, or the one wide figure) closes off
-  // whatever row is open — rebalancing it first if needed — and is
-  // appended directly to contentInner; anything else goes into the open
-  // row's active column, opening a fresh row first if none is open.
-  // Returns the DOM node it appended, for the caller to remove again if
-  // it doesn't fit.
+  // fullWidth` (only a part banner, which always forceBreaks onto its own
+  // fresh page anyway) closes off whatever row is open — rebalancing it
+  // first if needed — and is appended directly to contentInner; anything
+  // else goes into the open row's active column, opening a fresh row
+  // first if none is open. Returns the DOM node it appended, for the
+  // caller to remove again if it doesn't fit.
   function appendUnit(cur, unit){
     var el = htmlToElement(unit.html);
     if(unit.fullWidth){
@@ -1073,10 +1060,9 @@
     var added = unitList.map(function(u){ return appendUnit(cur, u); });
     var fits = !overflowed(cur);
     for(var k=added.length-1;k>=0;k--) added[k].parentNode.removeChild(added[k]);
-    // A group starting with a fullWidth unit (an L1) makes appendUnit open
-    // a fresh row for whatever non-fullWidth unit follows it — undoing the
-    // leaf elements above can leave that fresh row behind, empty. Since it
-    // didn't exist before this dry run, remove it too.
+    // appendUnit can open a fresh row while placing these units (e.g. the
+    // first one starts a new column that turns out empty after undo) —
+    // since that row didn't exist before this dry run, remove it too.
     Array.from(cur.contentInner.children).forEach(function(rowEl){
       if(rowEl.classList.contains("cols-row") && rowsBefore.indexOf(rowEl) === -1 &&
          rowEl.querySelector(".col-left").children.length === 0 && rowEl.querySelector(".col-right").children.length === 0){
@@ -1102,14 +1088,11 @@
           var groupUnits = [];
           for(var g=idx; g<=end; g++) groupUnits.push(units[g]);
           if(!fitsGroup(cur, groupUnits)){
-            // Doesn't fit at the current column position. If this run
-            // starts with a full-width heading (an L1), fitsGroup's dry
-            // run above already rebalanced the row it would close out (see
-            // rebalanceRow()) — that's a one-way improvement, so there's
-            // nothing more to try there. Otherwise, if the right column of
-            // the same row is still empty (we were about to place this run
-            // at the top of a fresh left column, not partway down one),
-            // try it there before giving up and starting a whole new page.
+            // Doesn't fit at the current column position. If the right
+            // column of the same row is still empty (we were about to
+            // place this run at the top of a fresh left column, not
+            // partway down one), try it there before giving up and
+            // starting a whole new page.
             var row = cur.activeRow;
             var canTryRight = row && row.activeCol === row.colLeft && row.colRight.children.length === 0;
             var fitsRight = false;
@@ -1118,11 +1101,12 @@
               fitsRight = fitsGroup(cur, groupUnits);
               if(!fitsRight) row.activeCol = row.colLeft;
             }
-            // A run NOT led by a full-width unit (a plain H2/H3 chain, say)
-            // never goes through appendUnit's own fullWidth-triggered
-            // rebalance, so a row where colLeft ended up well ahead of
-            // colRight, leaving this run stuck without room, never gets
-            // the chance to redistribute on its own. Rebalancing moves
+            // A heading run never goes through appendUnit's own
+            // fullWidth-triggered rebalance (only part-banner is
+            // fullWidth, and it never appears in a heading group), so a
+            // row where colLeft ended up well ahead of colRight, leaving
+            // this run stuck without room, never gets the chance to
+            // redistribute on its own. Rebalancing moves
             // colLeft's later items into colRight, which means colRight
             // now holds the chronologically LATEST placed content — so
             // the next thing appended (this run, if it now fits) has to
