@@ -118,7 +118,25 @@
   .page-kicker .pageno{ font-variant-numeric:tabular-nums; }
 
   .page-content{ flex:1 1 auto; min-height:0; overflow:hidden; }
-  .page-content-inner{ column-count:2; column-gap:9mm; column-rule:.6pt solid var(--paper-border); }
+  /* Two EXPLICIT column divs (built and filled by the JS pagination engine
+     below) instead of CSS column-count. A CSS multi-column box defaults to
+     column-fill:balance, which redistributes content to minimize each
+     column's height rather than filling column 1 to the page's actual
+     capacity before spilling into column 2 — for short content it doesn't
+     even split into two columns until the first column's un-split height
+     would already exceed the page, and for content containing a
+     break-inside:avoid block it can jump the required height up in a way
+     that doesn't match reading order. Both cause the JS's simple "does the
+     content's rendered height exceed the page's height" check to fire at
+     the wrong point, which is what caused pages to end early with a
+     mostly-blank second column, or overflowing content to be clipped
+     instead of pushed to a new page. Plain block flow inside two sibling
+     flex columns makes the container's own height a true, monotonic sum
+     of what's actually been placed, so the existing height-based overflow
+     check means what it says. */
+  .cols-row{ display:flex; }
+  .cols-row .col{ flex:1 1 0; min-width:0; }
+  .cols-row .col-left{ padding-right:4.5mm; margin-right:4.5mm; border-right:.6pt solid var(--paper-border); }
 
   .page-footer{
     flex:0 0 auto; margin-top:5mm; padding-top:2.4mm;
@@ -197,7 +215,9 @@
     font-family:var(--font-display); font-weight:800; font-size:13.5pt; color:var(--paper-line);
     border-bottom:1.6pt solid var(--paper-line); padding-bottom:1.8mm; margin:6mm 0 3mm;
   }
-  .toc-title + .toc-part{ margin-top:0; }
+  /* .toc-part sits inside a .cols-row's left column now, not directly next
+     to .toc-title as a sibling — target it through that wrapper instead. */
+  .toc-title + .cols-row .col-left > .toc-part:first-child{ margin-top:0; }
   .toc-l1{
     display:flex; align-items:baseline; gap:1.4mm; break-inside:avoid-column;
     font-family:var(--font-display); font-weight:700; font-size:9.6pt; color:var(--paper-ink);
@@ -15382,6 +15402,14 @@
     return html;
   }
 
+  // The one wide figure (spanning both columns) needs its unit marked
+  // fullWidth so the pagination engine appends it directly to the page
+  // instead of into a column — cheaper than threading a second return
+  // value through every renderFigs()/renderImageOverride() call site.
+  function isWideFigHtml(html){
+    return /class="fig wide"/.test(html || "");
+  }
+
   // Every figure in this book renders at single-column width except the
   // 국가/영토 diagram (territorial-waters cross-section) — wide enough,
   // and simple enough at that width, to be the one real exception; every
@@ -15568,7 +15596,7 @@
     function flushPageFigs(){
       if(lastPage === null) return;
       var figHtml = renderFigs(lastPage);
-      if(figHtml) units.push({ html: figHtml, state:{part:curPart,l1:curL1} });
+      if(figHtml) units.push({ html: figHtml, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(figHtml) });
     }
 
     for(var i=0;i<items.length;i++){
@@ -15585,7 +15613,7 @@
         curPartEntry = { text: it.text, l1s: [], id: pid };
         tocEntryById[pid] = curPartEntry;
         tocEntries.push(curPartEntry);
-        units.push({ html: '<div class="part-banner" data-toc-id="'+pid+'">'+esc(it.text)+'</div>', state:{part:curPart,l1:curL1}, forceBreak:true });
+        units.push({ html: '<div class="part-banner" data-toc-id="'+pid+'">'+esc(it.text)+'</div>', state:{part:curPart,l1:curL1}, forceBreak:true, fullWidth:true });
       } else if(it.marker === "L1"){
         curL1 = stripLeadNumber(it.text);
         if(!curPartEntry){ curPartEntry = { text:"", l1s:[] }; tocEntries.push(curPartEntry); }
@@ -15593,9 +15621,9 @@
         curL1Entry = { text: curL1, h1s: [], id: lid };
         tocEntryById[lid] = curL1Entry;
         curPartEntry.l1s.push(curL1Entry);
-        units.push({ html: '<h2 class="l1" data-toc-id="'+lid+'">'+esc(curL1)+'</h2>', state:{part:curPart,l1:curL1}, isHeading:true });
+        units.push({ html: '<h2 class="l1" data-toc-id="'+lid+'">'+esc(curL1)+'</h2>', state:{part:curPart,l1:curL1}, isHeading:true, fullWidth:true });
         var overrideFigHtml1 = renderImageOverride(curL1);
-        if(overrideFigHtml1) units.push({ html: overrideFigHtml1, state:{part:curPart,l1:curL1} });
+        if(overrideFigHtml1) units.push({ html: overrideFigHtml1, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml1) });
       } else if(it.marker === "H1"){
         var hid = "t"+(tocIdSeq++);
         var h1TocText = it.text.replace(/\s*[:：].*$/,"");
@@ -15608,7 +15636,7 @@
           state:{part:curPart,l1:curL1}, isHeading:true
         });
         var overrideFigHtml2 = renderImageOverride(it.text) || renderImageOverride(h1TocText);
-        if(overrideFigHtml2) units.push({ html: overrideFigHtml2, state:{part:curPart,l1:curL1} });
+        if(overrideFigHtml2) units.push({ html: overrideFigHtml2, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml2) });
       } else if(it.marker === "H2"){
         units.push({ html: '<h4 class="h2"><span class="bullet">'+esc(it.symbol||"○")+'</span>'+esc(it.text)+'</h4>', state:{part:curPart,l1:curL1}, isHeading:true });
       } else if(it.marker === "H3"){
@@ -15634,7 +15662,7 @@
           units.push({ html: '<p class="note"><span class="bullet">'+esc(it.symbol||"※")+'</span>'+esc(noteText)+'</p>', state:{part:curPart,l1:curL1} });
         }
         var overrideFigHtml3 = renderImageOverride(it.text);
-        if(overrideFigHtml3) units.push({ html: overrideFigHtml3, state:{part:curPart,l1:curL1} });
+        if(overrideFigHtml3) units.push({ html: overrideFigHtml3, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml3) });
         i = k-1;
       } else if(it.marker === "TOPIC"){
         var title = it.text.replace(/^\s*TOPIC\s*[:：]\s*/, "");
@@ -15647,9 +15675,19 @@
         // sentence end, since a paragraph can be left hanging either by a
         // mid-sentence line wrap or by a stray unrelated fragment sitting
         // between it and its true continuation (both occur in this data).
+        // Original pages 43-51 are the ones DESIGN_SPEC.md documents as
+        // having sparser subheading extraction — many short bullet-style
+        // TEXT items there never end on a sentence boundary, so this merge
+        // can otherwise chain dozens of them (spanning genuinely unrelated
+        // topics) into one 1000+ character block too tall to fit in a
+        // single column. Capping the merge length there only (pages 1-42
+        // already render correctly and shouldn't change) trades an
+        // occasional mid-sentence paragraph break for never producing an
+        // unbreakable block that overflows the page.
         var textAcc = it.text;
         var m = i+1;
-        while(!isSentenceComplete(textAcc) && m < items.length && items[m].it.marker === "TEXT"){
+        var textMergeCap = items[i].page >= 43 ? 500 : Infinity;
+        while(!isSentenceComplete(textAcc) && textAcc.length < textMergeCap && m < items.length && items[m].it.marker === "TEXT"){
           textAcc += " " + items[m].it.text;
           m++;
         }
@@ -15667,7 +15705,7 @@
           });
         }
         var overrideFigHtml4 = renderImageOverrideForParagraph(textAcc);
-        if(overrideFigHtml4) units.push({ html: overrideFigHtml4, state:{part:curPart,l1:curL1} });
+        if(overrideFigHtml4) units.push({ html: overrideFigHtml4, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml4) });
         i = m-1;
       }
     }
@@ -15719,7 +15757,7 @@
     inner.appendChild(kicker); inner.appendChild(contentWrap); inner.appendChild(footer);
     shell.page.appendChild(inner);
     scratch.appendChild(shell.frame);
-    return { frame: shell.frame, contentWrap: contentWrap, contentInner: contentInner, pagenoEl: pagenoEl };
+    return { frame: shell.frame, contentWrap: contentWrap, contentInner: contentInner, pagenoEl: pagenoEl, activeRow: null };
   }
 
   function makeTocPage(index){
@@ -15746,28 +15784,110 @@
     shell.page.appendChild(inner);
     shell.frame.dataset.toc = "1";
     scratch.appendChild(shell.frame);
-    return { frame: shell.frame, contentWrap: contentWrap, contentInner: contentInner };
+    return { frame: shell.frame, contentWrap: contentWrap, contentInner: contentInner, activeRow: null };
   }
 
   function overflowed(rec){
     return rec.contentInner.getBoundingClientRect().height > rec.contentWrap.getBoundingClientRect().height + 0.5;
   }
 
-  // Appends `unit.html` (always exactly one top-level element) to the
-  // current page; if that overflows the page, the element is removed and
-  // re-appended to a freshly created page instead.
+  // Parses `html` (always exactly one top-level element, per the "one unit
+  // = one top-level element" invariant the rest of this file relies on)
+  // into a real DOM node.
+  function htmlToElement(html){
+    var tmpl = document.createElement("template");
+    tmpl.innerHTML = html.trim();
+    return tmpl.content.firstElementChild;
+  }
+
+  // Creates a new left/right column row, appends it to `contentInner`, and
+  // returns a handle tracking which of its two columns content is
+  // currently being appended to.
+  function createRow(contentInner){
+    var row = document.createElement("div");
+    row.className = "cols-row";
+    var colLeft = document.createElement("div");
+    colLeft.className = "col col-left";
+    var colRight = document.createElement("div");
+    colRight.className = "col col-right";
+    row.appendChild(colLeft);
+    row.appendChild(colRight);
+    contentInner.appendChild(row);
+    return { row: row, colLeft: colLeft, colRight: colRight, activeCol: colLeft };
+  }
+
+  // Appends one unit's element into the page, following the same
+  // left-column-then-right-column order a reader's eye follows: `unit.
+  // fullWidth` (a part banner, an L1, or the one wide figure) closes off
+  // whatever row is open and is appended directly to contentInner; anything
+  // else goes into the open row's active column, opening a fresh row first
+  // if none is open. Returns the DOM node it appended, for the caller to
+  // remove again if it doesn't fit.
+  function appendUnit(cur, unit){
+    var el = htmlToElement(unit.html);
+    if(unit.fullWidth){
+      cur.activeRow = null;
+      cur.contentInner.appendChild(el);
+    } else {
+      if(!cur.activeRow) cur.activeRow = createRow(cur.contentInner);
+      cur.activeRow.activeCol.appendChild(el);
+    }
+    return el;
+  }
+
+  // Appends `unit.html` to the current page; if that overflows the page,
+  // the element is removed and re-tried: a non-full-width unit that
+  // overflows while the active column is the left one and the right
+  // column is still untouched gets one retry there before giving up, and
+  // anything that still doesn't fit moves to a freshly created page
+  // instead — where, as the very first thing placed there, it's always
+  // accepted even if it alone exceeds one page (nothing better to do with
+  // a single oversized unit).
   function placeUnit(pages, cur, unit, pageFactory){
     if(unit.forceBreak && cur.contentInner.children.length > 0){
       cur = pageFactory();
       pages.push(cur);
     }
-    cur.contentInner.insertAdjacentHTML("beforeend", unit.html);
-    if(cur.contentInner.children.length > 1 && overflowed(cur)){
-      cur.contentInner.removeChild(cur.contentInner.lastElementChild);
-      cur = pageFactory();
-      pages.push(cur);
-      cur.contentInner.insertAdjacentHTML("beforeend", unit.html);
+    var pageWasEmpty = cur.contentInner.children.length === 0;
+
+    if(unit.fullWidth){
+      var elFull = htmlToElement(unit.html);
+      cur.activeRow = null;
+      cur.contentInner.appendChild(elFull);
+      if(!pageWasEmpty && overflowed(cur)){
+        cur.contentInner.removeChild(elFull);
+        cur = pageFactory();
+        pages.push(cur);
+        cur.activeRow = null;
+        elFull = htmlToElement(unit.html);
+        cur.contentInner.appendChild(elFull);
+      }
+      cur.lastPlacedEl = elFull;
+      return cur;
     }
+
+    if(!cur.activeRow) cur.activeRow = createRow(cur.contentInner);
+    var row = cur.activeRow;
+    var col = row.activeCol;
+    var el = htmlToElement(unit.html);
+    col.appendChild(el);
+    if(pageWasEmpty || !overflowed(cur)){ cur.lastPlacedEl = el; return cur; }
+
+    col.removeChild(el);
+    if(col === row.colLeft && row.colRight.children.length === 0){
+      row.activeCol = row.colRight;
+      var el2 = htmlToElement(unit.html);
+      row.colRight.appendChild(el2);
+      if(!overflowed(cur)){ cur.lastPlacedEl = el2; return cur; }
+      row.colRight.removeChild(el2);
+    }
+
+    cur = pageFactory();
+    pages.push(cur);
+    cur.activeRow = createRow(cur.contentInner);
+    var el3 = htmlToElement(unit.html);
+    cur.activeRow.activeCol.appendChild(el3);
+    cur.lastPlacedEl = el3;
     return cur;
   }
 
@@ -15778,12 +15898,28 @@
   // the SAME guard applied to the whole run at once, or the later heading
   // can still separate from the first even though each individually passed
   // a plain one-ahead check. Test the whole run plus one real content unit
-  // together before committing any of it, and push the entire group onto a
-  // new page if that combination doesn't fit.
-  function fitsGroup(cur, htmlList){
-    cur.contentInner.insertAdjacentHTML("beforeend", htmlList.join(""));
+  // together (using the page's current column position, same as a real
+  // placement would) before committing any of it, and push the entire
+  // group onto a new page if that combination doesn't fit.
+  function fitsGroup(cur, unitList){
+    var savedRow = cur.activeRow;
+    var savedCol = savedRow ? savedRow.activeCol : null;
+    var rowsBefore = Array.from(cur.contentInner.children).filter(function(c){ return c.classList.contains("cols-row"); });
+    var added = unitList.map(function(u){ return appendUnit(cur, u); });
     var fits = !overflowed(cur);
-    for(var k=0;k<htmlList.length;k++) cur.contentInner.removeChild(cur.contentInner.lastElementChild);
+    for(var k=added.length-1;k>=0;k--) added[k].parentNode.removeChild(added[k]);
+    // A group starting with a fullWidth unit (an L1) makes appendUnit open
+    // a fresh row for whatever non-fullWidth unit follows it — undoing the
+    // leaf elements above can leave that fresh row behind, empty. Since it
+    // didn't exist before this dry run, remove it too.
+    Array.from(cur.contentInner.children).forEach(function(rowEl){
+      if(rowEl.classList.contains("cols-row") && rowsBefore.indexOf(rowEl) === -1 &&
+         rowEl.querySelector(".col-left").children.length === 0 && rowEl.querySelector(".col-right").children.length === 0){
+        rowEl.parentNode.removeChild(rowEl);
+      }
+    });
+    cur.activeRow = savedRow;
+    if(savedRow) savedRow.activeCol = savedCol;
     return fits;
   }
 
@@ -15798,11 +15934,51 @@
         while(j+1 < units.length && units[j+1].isHeading) j++;
         var end = Math.min(j+1, units.length-1); // one real content unit past the heading run, if any
         if(end > idx && !units[end].forceBreak){
-          var htmlList = [];
-          for(var g=idx; g<=end; g++) htmlList.push(units[g].html);
-          if(!fitsGroup(cur, htmlList)){
-            cur = makeBodyPage(u.state);
-            pages.push(cur);
+          var groupUnits = [];
+          for(var g=idx; g<=end; g++) groupUnits.push(units[g]);
+          if(!fitsGroup(cur, groupUnits)){
+            // Doesn't fit at the current column position. Before giving up
+            // and starting a whole new page — which would leave an
+            // untouched right column behind, wasting up to half a page —
+            // try two things first.
+            var row = cur.activeRow;
+            var canTryRight = row && row.activeCol === row.colLeft && row.colRight.children.length === 0;
+            var fitsRight = false;
+            if(canTryRight){
+              // 1. The right column of the same row is still empty (we
+              // were about to place this run at the top of a fresh left
+              // column, not partway down one) — try it there instead.
+              row.activeCol = row.colRight;
+              fitsRight = fitsGroup(cur, groupUnits);
+              if(!fitsRight) row.activeCol = row.colLeft;
+            }
+            var rebalanced = false;
+            if(!fitsRight && row && row.colRight.children.length === 0 && row.colLeft.children.length > 1){
+              // 2. This group starts with a full-width heading (an L1),
+              // which always opens a fresh row regardless of which column
+              // it's "tried" in, so (1) never helps here — the real fix is
+              // that the CURRENT row never used its right column at all
+              // (whatever's in colLeft fit there without ever overflowing
+              // it), so the row's own height equals colLeft's, wasting
+              // however much shorter colRight would have made it. Moving
+              // the back half of colLeft's items into colRight (still in
+              // reading order — left column read in full before right)
+              // shrinks the row to roughly its balanced height and often
+              // frees up just enough room for the heading run to fit.
+              var leftChildren = Array.from(row.colLeft.children);
+              var moveCount = Math.floor(leftChildren.length / 2);
+              var moved = leftChildren.slice(leftChildren.length - moveCount);
+              moved.forEach(function(node){ row.colRight.appendChild(node); });
+              if(fitsGroup(cur, groupUnits)){
+                rebalanced = true;
+              } else {
+                moved.forEach(function(node){ row.colLeft.appendChild(node); });
+              }
+            }
+            if(!fitsRight && !rebalanced){
+              cur = makeBodyPage(u.state);
+              pages.push(cur);
+            }
           }
         }
       }
@@ -15840,7 +16016,7 @@
     pages.push(cur);
     units.forEach(function(u){
       cur = placeUnit(pages, cur, u, function(){ return makeTocPage(pages.length); });
-      if(u.entryRef) u.entryRef.tocPgEl = cur.contentInner.lastElementChild.querySelector(".toc-pg");
+      if(u.entryRef) u.entryRef.tocPgEl = cur.lastPlacedEl.querySelector(".toc-pg");
     });
     return pages;
   }
