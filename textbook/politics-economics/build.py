@@ -14,6 +14,7 @@ def main():
     template = read(os.path.join(HERE, "template.html"))
     content = read(os.path.join(HERE, "content.json"))
     images_meta = read(os.path.join(HERE, "images.json"))
+    font_faces = read(os.path.join(HERE, "fonts", "notokr-fontfaces.css"))
 
     images_meta_list = json.loads(images_meta)
     images_data = {}
@@ -23,6 +24,7 @@ def main():
             images_data[im["file"]] = "data:image/jpeg;base64," + base64.b64encode(f.read()).decode("ascii")
 
     out = template
+    out = out.replace("/*__FONT_FACES__*/", font_faces)
     out = out.replace("/*__CONTENT_JSON__*/", content)
     out = out.replace("/*__IMAGES_META__*/", images_meta)
     out = out.replace("/*__IMAGES_DATA__*/", json.dumps(images_data, ensure_ascii=False))

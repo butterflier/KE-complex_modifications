@@ -1,9 +1,16 @@
 <!doctype html>
 <title>정치경제 교재</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 <style>
+  /* Noto Sans KR embedded as base64 data: URIs (weights 400/500/700/900,
+     Korean + Latin subsets) instead of loaded from Google Fonts. This
+     print deliverable can't depend on a network fetch succeeding at
+     measurement time — the pagination engine below measures real
+     rendered text height to decide page breaks, and a font that swaps in
+     AFTER that measurement (slow network, a blocked font CDN, print
+     pipelines that don't fetch external resources at all) would silently
+     invalidate every page break it already computed. Embedding makes
+     rendering deterministic regardless of network conditions. */
+  /*__FONT_FACES__*/
   /* ---------------- tokens (continuing 원고지 조판소's palette) ---------------- */
   :root{
     --bg:#EEF0F0;
