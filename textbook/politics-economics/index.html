@@ -15410,7 +15410,16 @@
       var wide = !narrow && (im.w / im.h) > 1.55;
       var src = IMAGES_SRC[im.file];
       if(!src) return;
-      html += '<figure class="fig'+(wide?' wide':'')+'"><img src="'+src+'" alt="자료 이미지" loading="lazy"></figure>';
+      // NOT loading="lazy": these are already-embedded base64 data: URIs
+      // (no network fetch to defer), and lazy-loading applies to any img
+      // regardless of URL scheme — a page frame sitting off in the hidden,
+      // off-screen scratch area used for pagination measurement is never
+      // "near the viewport", so the image never actually decodes there.
+      // The overflow check then measures it at ~0 height, wrongly
+      // concludes the page has room, and the image only reveals its real
+      // size (and overflows the fixed page box) once it finally loads
+      // after being scrolled into view for real.
+      html += '<figure class="fig'+(wide?' wide':'')+'"><img src="'+src+'" alt="자료 이미지"></figure>';
     });
     html += '</div>';
     return html;
@@ -15430,14 +15439,22 @@
   // other "wide" image turned out too small to read once shrunk sideways.
   var WIDE_ALLOWED = { "page01_img1.png": true };
 
-  function renderFigs(pageNo){
+  // Returns one html string PER IMAGE (each its own single top-level
+  // element, same invariant as any other unit) rather than one batch
+  // combining every image on the original page — a page with several
+  // images (a couple of graphs plus a data table, say) easily adds up to
+  // more than one column's height, and since a unit can never be split
+  // across columns/pages, bundling them together forced the whole group
+  // to succeed or overflow as one. Separate units let the pagination
+  // engine place each image wherever it actually fits.
+  function renderFigsList(pageNo){
     var ims = (imagesByPage[pageNo]||[]).filter(function(im){ return !overriddenFiles[im.file]; });
-    if(!ims.length) return "";
+    if(!ims.length) return [];
     ims = ims.slice().sort(function(a,b){
       if(a.column !== b.column) return a.column === "left" ? -1 : 1;
       return a.file < b.file ? -1 : (a.file > b.file ? 1 : 0);
     }).map(function(im){ return Object.assign({}, im, { narrow: !WIDE_ALLOWED[im.file] }); });
-    return figuresHtml(ims);
+    return ims.map(function(im){ return figuresHtml([im]); });
   }
 
   // Renders any images overridden to anchor right after this exact heading
@@ -15609,8 +15626,9 @@
     var lastPage = null;
     function flushPageFigs(){
       if(lastPage === null) return;
-      var figHtml = renderFigs(lastPage);
-      if(figHtml) units.push({ html: figHtml, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(figHtml) });
+      renderFigsList(lastPage).forEach(function(figHtml){
+        units.push({ html: figHtml, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(figHtml) });
+      });
     }
 
     for(var i=0;i<items.length;i++){
@@ -15830,16 +15848,35 @@
     return { row: row, colLeft: colLeft, colRight: colRight, activeCol: colLeft };
   }
 
+  // A row whose left column filled up without ever overflowing (so its
+  // right column was never touched) reads exactly as intended UP TO that
+  // point — column 1 fully read before column 2, as any 2-column layout
+  // should. The problem shows up the moment a full-width heading needs to
+  // close that row out: the row is "done" with its right column still
+  // completely empty, wasting up to half a page even though nothing
+  // actually overflowed. Moving the back half of the left column's items
+  // into the right one — still in reading order, left column read in
+  // full before right — fixes that without changing what the reader sees
+  // except which column it's in.
+  function rebalanceRow(row){
+    if(!row || row.colRight.children.length > 0 || row.colLeft.children.length < 2) return;
+    var leftChildren = Array.from(row.colLeft.children);
+    var moveCount = Math.floor(leftChildren.length / 2);
+    leftChildren.slice(leftChildren.length - moveCount).forEach(function(node){ row.colRight.appendChild(node); });
+  }
+
   // Appends one unit's element into the page, following the same
   // left-column-then-right-column order a reader's eye follows: `unit.
   // fullWidth` (a part banner, an L1, or the one wide figure) closes off
-  // whatever row is open and is appended directly to contentInner; anything
-  // else goes into the open row's active column, opening a fresh row first
-  // if none is open. Returns the DOM node it appended, for the caller to
-  // remove again if it doesn't fit.
+  // whatever row is open — rebalancing it first if needed — and is
+  // appended directly to contentInner; anything else goes into the open
+  // row's active column, opening a fresh row first if none is open.
+  // Returns the DOM node it appended, for the caller to remove again if
+  // it doesn't fit.
   function appendUnit(cur, unit){
     var el = htmlToElement(unit.html);
     if(unit.fullWidth){
+      rebalanceRow(cur.activeRow);
       cur.activeRow = null;
       cur.contentInner.appendChild(el);
     } else {
@@ -15865,6 +15902,7 @@
     var pageWasEmpty = cur.contentInner.children.length === 0;
 
     if(unit.fullWidth){
+      rebalanceRow(cur.activeRow);
       var elFull = htmlToElement(unit.html);
       cur.activeRow = null;
       cur.contentInner.appendChild(elFull);
@@ -15951,45 +15989,23 @@
           var groupUnits = [];
           for(var g=idx; g<=end; g++) groupUnits.push(units[g]);
           if(!fitsGroup(cur, groupUnits)){
-            // Doesn't fit at the current column position. Before giving up
-            // and starting a whole new page — which would leave an
-            // untouched right column behind, wasting up to half a page —
-            // try two things first.
+            // Doesn't fit at the current column position. If this run
+            // starts with a full-width heading (an L1), fitsGroup's dry
+            // run above already rebalanced the row it would close out (see
+            // rebalanceRow()) — that's a one-way improvement, so there's
+            // nothing more to try there. Otherwise, if the right column of
+            // the same row is still empty (we were about to place this run
+            // at the top of a fresh left column, not partway down one),
+            // try it there before giving up and starting a whole new page.
             var row = cur.activeRow;
             var canTryRight = row && row.activeCol === row.colLeft && row.colRight.children.length === 0;
             var fitsRight = false;
             if(canTryRight){
-              // 1. The right column of the same row is still empty (we
-              // were about to place this run at the top of a fresh left
-              // column, not partway down one) — try it there instead.
               row.activeCol = row.colRight;
               fitsRight = fitsGroup(cur, groupUnits);
               if(!fitsRight) row.activeCol = row.colLeft;
             }
-            var rebalanced = false;
-            if(!fitsRight && row && row.colRight.children.length === 0 && row.colLeft.children.length > 1){
-              // 2. This group starts with a full-width heading (an L1),
-              // which always opens a fresh row regardless of which column
-              // it's "tried" in, so (1) never helps here — the real fix is
-              // that the CURRENT row never used its right column at all
-              // (whatever's in colLeft fit there without ever overflowing
-              // it), so the row's own height equals colLeft's, wasting
-              // however much shorter colRight would have made it. Moving
-              // the back half of colLeft's items into colRight (still in
-              // reading order — left column read in full before right)
-              // shrinks the row to roughly its balanced height and often
-              // frees up just enough room for the heading run to fit.
-              var leftChildren = Array.from(row.colLeft.children);
-              var moveCount = Math.floor(leftChildren.length / 2);
-              var moved = leftChildren.slice(leftChildren.length - moveCount);
-              moved.forEach(function(node){ row.colRight.appendChild(node); });
-              if(fitsGroup(cur, groupUnits)){
-                rebalanced = true;
-              } else {
-                moved.forEach(function(node){ row.colLeft.appendChild(node); });
-              }
-            }
-            if(!fitsRight && !rebalanced){
+            if(!fitsRight){
               cur = makeBodyPage(u.state);
               pages.push(cur);
             }
@@ -16081,13 +16097,31 @@
     bodyPages.forEach(function(rec){ stage.appendChild(rec.frame); });
   }
 
-  if(document.fonts && document.fonts.ready){
-    document.fonts.load("400 12px 'Noto Sans KR'");
-    document.fonts.load("700 12px 'Noto Sans KR'");
-    document.fonts.ready.then(build).catch(build);
-  } else {
-    build();
+  // Decoding every image once, up front, before pagination ever runs is
+  // load-bearing, not an optimization: buildUnits()/placeUnit() insert
+  // <img> elements one at a time while measuring heights synchronously,
+  // and even a same-origin data: URI image isn't guaranteed to report its
+  // real naturalHeight the instant it's inserted — there can be a brief
+  // async gap before the browser finishes decoding it. During that gap
+  // the pagination engine sees a ~0px-tall image, wrongly concludes the
+  // page has room, and the image only reveals its true size (overflowing
+  // the fixed page box) once it finishes decoding for real later. Decoding
+  // every source into a throwaway Image() first means the browser's
+  // per-URL image cache already has the real dimensions ready by the time
+  // an <img> with that same data: URI is actually inserted during layout.
+  function preloadImages(){
+    return Promise.all(Object.keys(IMAGES_SRC).map(function(key){
+      var img = new Image();
+      img.src = IMAGES_SRC[key];
+      return img.decode ? img.decode().catch(function(){}) : new Promise(function(res){ img.onload = img.onerror = res; });
+    }));
   }
+
+  var fontsReady = (document.fonts && document.fonts.ready)
+    ? (document.fonts.load("400 12px 'Noto Sans KR'"), document.fonts.load("700 12px 'Noto Sans KR'"), document.fonts.ready)
+    : Promise.resolve();
+
+  Promise.all([fontsReady, preloadImages()]).then(build).catch(build);
 
   document.querySelector(".nav-jump").addEventListener("click", function(e){
     var btn = e.target.closest("[data-jump]");
