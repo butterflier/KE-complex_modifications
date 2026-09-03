@@ -201,6 +201,14 @@
     background:rgba(198,86,74,.045); border:.75pt solid var(--paper-border);
     border-left:2.4pt solid var(--paper-line);
   }
+  /* A long TOPIC box is split into several .topic units (one per
+     paragraph) so it can flow across columns/pages — when consecutive
+     pieces land as plain DOM siblings (same column), drop the border and
+     margin between them so the run still reads as one continuous box;
+     a piece that lands in a different column/page keeps its own full
+     border, same as any box that legitimately continues elsewhere. */
+  .topic + .topic{ margin-top:0; border-top:none; padding-top:0; }
+  .topic:has(+ .topic){ margin-bottom:0; border-bottom:none; padding-bottom:0; }
   .topic .chip{
     display:inline-block; font-family:var(--font-body); font-weight:700; font-size:6.6pt;
     letter-spacing:.07em; color:#fff; background:var(--paper-line); border-radius:2.5px;
@@ -15882,15 +15890,25 @@
   // first child as the reference (null when colRight started empty, so
   // this degrades to a plain append) keeps the moved items ahead of
   // whatever colRight already had, matching reading order.
+  // Returns the moved nodes (or null if the row was already close enough
+  // to balanced to leave alone), so a caller that finds the rebalance
+  // didn't actually help can undo it with undoRebalance() below instead
+  // of leaving a permanent side effect from a failed attempt.
   function rebalanceRow(row){
-    if(!row) return;
+    if(!row) return null;
     var left = row.colLeft.children.length, right = row.colRight.children.length;
-    if(left - right < 2) return;
+    if(left - right < 2) return null;
     var leftChildren = Array.from(row.colLeft.children);
     var moveCount = Math.floor((left - right) / 2);
     var moved = leftChildren.slice(leftChildren.length - moveCount);
     var refNode = row.colRight.firstChild;
     moved.forEach(function(node){ row.colRight.insertBefore(node, refNode); });
+    return moved;
+  }
+
+  function undoRebalance(row, moved){
+    if(!moved) return;
+    moved.forEach(function(node){ row.colLeft.appendChild(node); });
   }
 
   // Appends one unit's element into the page, following the same
@@ -16033,7 +16051,33 @@
               fitsRight = fitsGroup(cur, groupUnits);
               if(!fitsRight) row.activeCol = row.colLeft;
             }
-            if(!fitsRight){
+            // A run NOT led by a full-width unit (a plain H2/H3 chain, say)
+            // never goes through appendUnit's own fullWidth-triggered
+            // rebalance, so a row where colLeft ended up well ahead of
+            // colRight, leaving this run stuck without room, never gets
+            // the chance to redistribute on its own. Rebalancing moves
+            // colLeft's later items into colRight, which means colRight
+            // now holds the chronologically LATEST placed content — so
+            // the next thing appended (this run, if it now fits) has to
+            // go after that, in colRight, not colLeft, however activeCol
+            // was left pointing after the (reverted) attempt above.
+            var fitsAfterRebalance = false;
+            if(!fitsRight && row){
+              var priorActiveCol = row.activeCol;
+              var moved = rebalanceRow(row);
+              row.activeCol = row.colRight;
+              fitsAfterRebalance = fitsGroup(cur, groupUnits);
+              if(!fitsAfterRebalance){
+                // Didn't help — undo it rather than leaving a permanent
+                // reshuffle behind for a run that's moving to a new page
+                // anyway; repeated failed attempts across this row's
+                // lifetime would otherwise compound into moving far more
+                // than intended.
+                undoRebalance(row, moved);
+                row.activeCol = priorActiveCol;
+              }
+            }
+            if(!fitsRight && !fitsAfterRebalance){
               cur = makeBodyPage(u.state);
               pages.push(cur);
             }
