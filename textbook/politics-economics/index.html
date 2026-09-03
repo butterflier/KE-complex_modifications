@@ -15697,11 +15697,28 @@
         if(overrideFigHtml3) units.push({ html: overrideFigHtml3, state:{part:curPart,l1:curL1}, fullWidth: isWideFigHtml(overrideFigHtml3) });
         i = k-1;
       } else if(it.marker === "TOPIC"){
+        // A long TOPIC box (title + several paragraphs) used to render as
+        // one indivisible unit, so if it didn't fit whatever column space
+        // was left, the WHOLE box moved elsewhere, stranding blank space
+        // behind it. Splitting it into one topic-styled unit per paragraph
+        // (first one keeps the chip+title) lets it flow across columns
+        // and pages exactly like ordinary body text.
         var title = it.text.replace(/^\s*TOPIC\s*[:：]\s*/, "");
-        var body = "";
+        var bodyParas = [];
         var j = i+1;
-        while(j < items.length && items[j].it.marker === "TEXT"){ body += formatProseHtml(items[j].it.text); j++; }
-        units.push({ html: '<div class="topic"><span class="chip">TOPIC</span><span class="topic-title">'+esc(title)+'</span>'+body+'</div>', state:{part:curPart,l1:curL1} });
+        while(j < items.length && items[j].it.marker === "TEXT"){
+          bodyParas = bodyParas.concat(splitEnumerated(items[j].it.text));
+          j++;
+        }
+        var firstPara = bodyParas.length ? bodyParas.shift() : "";
+        units.push({
+          html: '<div class="topic"><span class="chip">TOPIC</span><span class="topic-title">'+esc(title)+'</span>' +
+            (firstPara ? '<p class="text">'+esc(firstPara)+'</p>' : '') + '</div>',
+          state:{part:curPart,l1:curL1}
+        });
+        bodyParas.forEach(function(seg){
+          units.push({ html: '<div class="topic"><p class="text">'+esc(seg)+'</p></div>', state:{part:curPart,l1:curL1} });
+        });
         i = j-1;
       } else { // TEXT — absorb any further TEXT items needed to reach a real
         // sentence end, since a paragraph can be left hanging either by a
@@ -15848,21 +15865,32 @@
     return { row: row, colLeft: colLeft, colRight: colRight, activeCol: colLeft };
   }
 
-  // A row whose left column filled up without ever overflowing (so its
-  // right column was never touched) reads exactly as intended UP TO that
-  // point — column 1 fully read before column 2, as any 2-column layout
-  // should. The problem shows up the moment a full-width heading needs to
-  // close that row out: the row is "done" with its right column still
-  // completely empty, wasting up to half a page even though nothing
-  // actually overflowed. Moving the back half of the left column's items
-  // into the right one — still in reading order, left column read in
-  // full before right — fixes that without changing what the reader sees
-  // except which column it's in.
+  // A row whose left column ends up noticeably fuller than its right one
+  // reads exactly as intended UP TO that point — column 1 read before
+  // column 2, as any 2-column layout should. The imbalance itself is
+  // often fine (colRight just hadn't been reached yet when a page ended
+  // for an unrelated reason), but the moment a full-width heading needs
+  // to close the row out, the gap becomes wasted space for the rest of
+  // the page — and it also means less room was left to test the heading
+  // (plus its own first content unit) against, when a chunk of colRight's
+  // now-usable height was sitting unused in colLeft. Moving enough of
+  // colLeft's back items into colRight to bring the two within one item
+  // of each other — still in reading order, left column read in full
+  // before right — fixes both: the wasted space, and gives the heading a
+  // fairer shot at fitting on this page instead of stranding on its own
+  // at the top of a fresh one. insertBefore with colRight's original
+  // first child as the reference (null when colRight started empty, so
+  // this degrades to a plain append) keeps the moved items ahead of
+  // whatever colRight already had, matching reading order.
   function rebalanceRow(row){
-    if(!row || row.colRight.children.length > 0 || row.colLeft.children.length < 2) return;
+    if(!row) return;
+    var left = row.colLeft.children.length, right = row.colRight.children.length;
+    if(left - right < 2) return;
     var leftChildren = Array.from(row.colLeft.children);
-    var moveCount = Math.floor(leftChildren.length / 2);
-    leftChildren.slice(leftChildren.length - moveCount).forEach(function(node){ row.colRight.appendChild(node); });
+    var moveCount = Math.floor((left - right) / 2);
+    var moved = leftChildren.slice(leftChildren.length - moveCount);
+    var refNode = row.colRight.firstChild;
+    moved.forEach(function(node){ row.colRight.insertBefore(node, refNode); });
   }
 
   // Appends one unit's element into the page, following the same
