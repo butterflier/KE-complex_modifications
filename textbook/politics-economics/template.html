@@ -524,7 +524,16 @@
     //   under "법의 지배 — 미국에서의 발전" ("…입헌주의를 명확히 발전시켰다. 즉,
     //   헌법 제정권자인 국민이 성문 헌법을 통해 국가…"), reappearing a second
     //   time, split in two, right after the Locke summary.
-    var SKIP_ITEM_TEXTS = { "를 가진다.": true, "를 명확히 발전시켰다. 즉, 헌법 제정권자인 국민이 성문 헌법을": true, "를 통해 국가": true , "안전할 권리 2. 알 권리 3. 선택할 권리 4. 의견을 반영할 권리": true };
+    // - page 4 ends with six more stray fragments (all NBSP-spaced, unlike
+    //   the rest of the book's plain-space text -- a telltale sign they're
+    //   leftover raw-copy debris, not retyped content) appended right after
+    //   the "기본적 인권의 확립" heading: each is just the tail half of a
+    //   sentence that already reads correctly earlier on the same page
+    //   (the 루소/『인간 불평등 기원론』 note, the 미국 독립 선언문 저항권 line,
+    //   the 로크 권력분립 line, the 몽테스키외 『법의 정신』 line, and the
+    //   근대 의회의 명망가 독점 line), duplicated a second time and cut apart
+    //   mid-word, with no sensible place of their own.
+    var SKIP_ITEM_TEXTS = { "를 가진다.": true, "를 명확히 발전시켰다. 즉, 헌법 제정권자인 국민이 성문 헌법을": true, "를 통해 국가": true , "안전할 권리 2. 알 권리 3. 선택할 권리 4. 의견을 반영할 권리": true, "프랑스) 저서: 『인간 불평등 기원론』, 『사회": true, "가 있음을 명시하고 있다.": true, "은 군주에게 남겨야 한": true, "을 이루도록 하는 제도를 구상하였다. 저서『법의 정신』": true, "이 의원직을 독점했으나,": true, "이": true };
 
     // A few items were tagged at the wrong level by the extraction: "세계
     // 각국의 정치 체제" is the real section heading but came through as a
