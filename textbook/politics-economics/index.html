@@ -16251,8 +16251,20 @@
     }));
   }
 
-  var fontsReady = (document.fonts && document.fonts.ready)
-    ? (document.fonts.load("400 12px 'Noto Sans KR'"), document.fonts.load("700 12px 'Noto Sans KR'"), document.fonts.ready)
+  // Every weight actually embedded (see the @font-face block above) has to
+  // be explicitly requested here — document.fonts.ready only waits on
+  // faces that are already loading or already used somewhere in the DOM,
+  // and at this point nothing has been rendered yet. Missing one (as an
+  // earlier version of this did for 900, used only by .toc-title) meant
+  // that face's data: URI wasn't guaranteed decoded before the TOC's
+  // first measurement pass — decode time is real CPU work, not instant,
+  // so whether it finished in time varied run to run and machine to
+  // machine, silently shifting page breaks (this is the same class of bug
+  // preloadImages() below exists to rule out for images).
+  var fontsReady = (document.fonts && document.fonts.load)
+    ? Promise.all([400, 500, 700, 900].map(function(w){
+        return document.fonts.load(w+" 12px 'Noto Sans KR'").catch(function(){});
+      })).then(function(){ return document.fonts.ready; })
     : Promise.resolve();
 
   Promise.all([fontsReady, preloadImages()]).then(build).catch(build);
