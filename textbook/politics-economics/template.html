@@ -544,6 +544,7 @@
       "대표적인 공해 : 1.대기 오염 / 2.수질 오염 / 3.토양 오염 / 4.소음 / 5.진동 /": { text: "대표적인 공해" },
       "6.지반 침하 / 7.악취": { text: "1. 대기 오염 2. 수질 오염 3. 토양 오염 4. 소음 5. 진동 6. 지반 침하 7. 악취." },
       "세계 각국의 정치 체제": { marker: "L1" },
+      "정치와 법": { marker: "L1" },
       "1 의원내각제와 대통령제": { marker: "H1", symbol: "●", text: "의원내각제와 대통령제" },
       "2 영국의 정치 체제": { marker: "H1", symbol: "●", text: "영국의 정치 체제" },
       "3 미국의 정치 체제": { marker: "H1", symbol: "●", text: "미국의 정치 체제" },
@@ -594,8 +595,33 @@
       { prefix: "사회 보장과 복지 - ", heading: "사회 보장과 복지", marker: "H1", symbol: "■" },
       { prefix: "1. 실업보험의 도입 ", heading: "실업보험의 도입", marker: "H2", symbol: "○" },
       { prefix: "2. 사회보장의 권리화 - ", heading: "사회보장의 권리화", marker: "H2", symbol: "○" },
-      { prefix: "○ 개인의 책임에서 사회적 문제로 ", heading: "개인의 책임에서 사회적 문제로", marker: "H3", symbol: "○" }
+      { prefix: "○ 개인의 책임에서 사회적 문제로 ", heading: "개인의 책임에서 사회적 문제로", marker: "H3", symbol: "○" },
+      { prefix: "민법 제1조: “권리의 행사와 의무의 이행은 신의에 따라 성실히 이루어져야 한다.” ", heading: "민법 제1조: “권리의 행사와 의무의 이행은 신의에 따라 성실히 이루어져야 한다.”", marker: "H1", symbol: "■" },
+      { prefix: "19세기 의회주의의 발달과 그 변화 ", heading: "19세기 의회주의의 발달과 그 변화", marker: "H1", symbol: "■" }
     ];
+
+    // A handful of TEXT paragraphs open with a short "레이블:" that reads as
+    // a sub-heading even though the item is really one continuous paragraph
+    // (splitting it into its own heading unit, as EMBEDDED_HEADINGS does,
+    // would be overkill for a two-word label) — bolding just that lead-in
+    // is enough. Matched by exact paragraph-start prefix.
+    var BOLD_LABEL_PREFIXES = [
+      "대표제의 결함:",
+      "심의의 형식화:",
+      "의원입법의 부족:"
+    ];
+    function boldLabelHtml(text){
+      var prefix = BOLD_LABEL_PREFIXES.find(function(p){ return text.indexOf(p) === 0; });
+      if(!prefix) return esc(text);
+      return "<strong>"+esc(prefix)+"</strong>"+esc(text.slice(prefix.length));
+    }
+
+    // "참고: …" reads as a genuine marginal aside despite running past the
+    // usual note length cutoff (see the NOTE branch below) — the source
+    // labels it as a reference note explicitly, so it keeps the ※/italic
+    // treatment regardless of length instead of falling back to plain
+    // paragraphs.
+    var FORCE_NOTE_TEXTS = { "참고: GHQ는 소련 등의 개입을 우려해, 1946년 2월에 예정된 극동위원회 발족 전 에 헌법 개정을 서둘렀다. 대일본제국헌법은 천황이 통치권을 총괄하며, 의회·내각·사법부는 모두 그의 하위기관으로 기능적 분담만 있었다. 반면, 일본국헌법은 권력 분립을 명확 히 하였다.": true };
 
     // The original PDF drew this comparison as a vector table (no text
     // extraction captures its grid), so its cell text came through as 6
@@ -713,10 +739,12 @@
         // A short ※ line is a genuine marginal annotation and keeps the note
         // styling; once merging has stretched it past a couple of sentences
         // it reads as real body content, not an aside, so it renders as
-        // plain paragraphs (no bullet, no italic, no border) instead.
-        if(noteText.length > 100){
+        // plain paragraphs (no bullet, no italic, no border) instead —
+        // unless the source explicitly labels it a reference note anyway
+        // (FORCE_NOTE_TEXTS), in which case the length cutoff is skipped.
+        if(noteText.length > 100 && !FORCE_NOTE_TEXTS[noteText]){
           splitEnumerated(noteText).forEach(function(seg){
-            units.push({ html: '<p class="text">'+esc(seg)+'</p>', state:{part:curPart,l1:curL1} });
+            units.push({ html: '<p class="text">'+boldLabelHtml(seg)+'</p>', state:{part:curPart,l1:curL1} });
           });
         } else {
           units.push({ html: '<p class="note"><span class="bullet">'+esc(it.symbol||"※")+'</span>'+esc(noteText)+'</p>', state:{part:curPart,l1:curL1} });
@@ -774,12 +802,12 @@
             if(seg.charAt(0) === "*"){
               units.push({ html: '<p class="note"><span class="bullet">*</span>'+esc(seg.slice(1).trim())+'</p>', state:{part:curPart,l1:curL1} });
             } else {
-              units.push({ html: '<p class="text">'+esc(seg)+'</p>', state:{part:curPart,l1:curL1} });
+              units.push({ html: '<p class="text">'+boldLabelHtml(seg)+'</p>', state:{part:curPart,l1:curL1} });
             }
           });
         } else {
           splitEnumerated(textAcc).forEach(function(seg){
-            units.push({ html: '<p class="text">'+esc(seg)+'</p>', state:{part:curPart,l1:curL1} });
+            units.push({ html: '<p class="text">'+boldLabelHtml(seg)+'</p>', state:{part:curPart,l1:curL1} });
           });
         }
         var overrideFigHtml4 = renderImageOverrideForParagraph(textAcc);
