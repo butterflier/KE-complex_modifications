@@ -16008,44 +16008,98 @@
 
   // A TOPIC box (unit.topicParas) is the one kind of unit allowed to
   // split — but only at an actual column boundary, at most once per
-  // column/page it spans, never once per internal paragraph. Tries the
-  // whole remaining paragraph list as a single unit first, reusing
-  // placeUnit's normal fallback order (current column, a still-empty
-  // right column, then a fresh page); that only leaves it overflowing if
-  // it was accepted purely because it was the sole content of an empty
-  // column (placeUnit's safety valve for one oversized unit) — in that
-  // case, pack the largest leading slice of paragraphs that actually
-  // fits there instead, and hand back the rest as a continuation (no
-  // chip/title) for the caller to insert right after this unit in the
-  // stream, where it goes through this exact same process again.
+  // column/page it spans, never once per internal paragraph. This used to
+  // hand the "place the whole box" attempt to placeUnit and only split
+  // afterward if the box still overflowed WHEREVER placeUnit put it — but
+  // placeUnit's own fallback chain, when the current column is already
+  // colRight (not colLeft), skips straight to a brand-new page without
+  // ever trying anything else, and a box that merely needed slightly more
+  // room than THIS page's colRight offered (a near-miss, not a genuinely
+  // oversized box) usually fits just fine on that fresh page with room to
+  // spare — so the post-check finds no overflow there and never realizes
+  // it stranded colRight completely empty behind it. Column-height
+  // measurements are also just barely different across browsers/OSes (a
+  // few px from font hinting), so exactly which boxes are near-misses can
+  // differ machine to machine even though the source content never
+  // changes — this is what made the same page render with a full vs. an
+  // entirely empty right column depending on who opened it. Placing the
+  // attempts directly here instead, and splitting into whatever column a
+  // near-miss happens in — before ever considering a new page — fixes
+  // both: it uses the room that column actually had, and it does so
+  // regardless of which specific box tips over the edge on a given
+  // machine.
   function placeSplittableTopic(pages, cur, unit, pageFactory){
     var showHeader = !!unit.topicTitle; // continuations (spilled remainders) carry no title and never show the chip again
-    var wholeUnit = { html: topicHtml(unit.topicTitle, unit.topicParas, showHeader) };
-    var afterCur = placeUnit(pages, cur, wholeUnit, pageFactory);
-    if(!overflowed(afterCur)) return { cur: afterCur, continuation: null };
 
-    afterCur.lastPlacedEl.parentNode.removeChild(afterCur.lastPlacedEl);
-    var col = afterCur.activeRow.activeCol;
-
-    var n = unit.topicParas.length;
-    var fitCount = 1;
-    for(var k = n-1; k >= 1; k--){
-      var testEl = htmlToElement(topicHtml(unit.topicTitle, unit.topicParas.slice(0, k), showHeader));
-      col.appendChild(testEl);
-      var ok = !overflowed(afterCur);
-      col.removeChild(testEl);
-      if(ok){ fitCount = k; break; }
+    function tryWhole(col){
+      var el = htmlToElement(topicHtml(unit.topicTitle, unit.topicParas, showHeader));
+      col.appendChild(el);
+      if(!overflowed(cur)){ cur.lastPlacedEl = el; return true; }
+      col.removeChild(el);
+      return false;
     }
 
-    var placedEl = htmlToElement(topicHtml(unit.topicTitle, unit.topicParas.slice(0, fitCount), showHeader));
-    col.appendChild(placedEl);
-    afterCur.lastPlacedEl = placedEl;
+    // Packs the largest leading slice of paragraphs that fits into `col`
+    // without overflowing, and hands back the rest as a continuation (no
+    // chip/title) for the caller to splice back into the unit stream
+    // right after this one, where it goes through this exact same
+    // process again. Returns null if NOTHING fits and col already holds
+    // other content — stacking an overflowing box after existing text
+    // would be worse than moving the whole thing to a fresh column, so
+    // the caller should try there instead. On an empty column, forces at
+    // least one paragraph through even if it overflows — the same
+    // "sole content" leniency placeUnit itself uses elsewhere for one
+    // oversized unit, just applied at paragraph granularity instead of
+    // to the whole box.
+    function split(col){
+      var n = unit.topicParas.length;
+      var fitCount = 0;
+      for(var k = n; k >= 1; k--){
+        var testEl = htmlToElement(topicHtml(unit.topicTitle, unit.topicParas.slice(0, k), showHeader));
+        col.appendChild(testEl);
+        var ok = !overflowed(cur);
+        col.removeChild(testEl);
+        if(ok){ fitCount = k; break; }
+      }
+      if(fitCount === 0){
+        if(col.children.length > 0) return null;
+        fitCount = 1;
+      }
+      var placedEl = htmlToElement(topicHtml(unit.topicTitle, unit.topicParas.slice(0, fitCount), showHeader));
+      col.appendChild(placedEl);
+      cur.lastPlacedEl = placedEl;
+      var remaining = unit.topicParas.slice(fitCount);
+      return { continuation: remaining.length
+        ? { html: topicHtml(null, remaining, false), topicTitle: null, topicParas: remaining, state: unit.state }
+        : null };
+    }
 
-    var remaining = unit.topicParas.slice(fitCount);
-    var continuation = remaining.length
-      ? { html: topicHtml(null, remaining, false), topicTitle: null, topicParas: remaining, state: unit.state }
-      : null;
-    return { cur: afterCur, continuation: continuation };
+    if(!cur.activeRow) cur.activeRow = createRow(cur.contentInner);
+    var row = cur.activeRow;
+    var col = row.activeCol;
+
+    if(tryWhole(col)) return { cur: cur, continuation: null };
+
+    if(col === row.colLeft && row.colRight.children.length === 0){
+      row.activeCol = row.colRight;
+      col = row.colRight;
+      if(tryWhole(col)) return { cur: cur, continuation: null };
+    }
+
+    var result = split(col);
+    if(result) return { cur: cur, continuation: result.continuation };
+
+    // Nothing usable fits in whatever's left of this page (col already
+    // held other content and couldn't take even one paragraph) — move on,
+    // the same fallback placeUnit itself uses for any oversized unit.
+    var freshCur = pageFactory();
+    pages.push(freshCur);
+    freshCur.activeRow = createRow(freshCur.contentInner);
+    cur = freshCur;
+    var freshCol = freshCur.activeRow.activeCol;
+    if(tryWhole(freshCol)) return { cur: freshCur, continuation: null };
+    var freshResult = split(freshCol); // freshCol is empty, so this always succeeds
+    return { cur: freshCur, continuation: freshResult.continuation };
   }
 
   // A heading (`isHeading`) that fits on the current page but leaves no
