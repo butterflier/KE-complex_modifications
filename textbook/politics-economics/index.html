@@ -7475,7 +7475,7 @@
       {
        "marker": "TEXT",
        "symbol": null,
-       "text": "2. 자의적인 여론 조작 위험 권력자가 불리한 정보를 발표하지 않도록 통제하거나, 허위 정보(예: 가짜 뉴 스)를 퍼뜨려 여론을 자신에게 유리하게 조작하려하는 것이 여론 조작이다. 매스미디어는 이러한 조작에 가담할 우려가 있다→ 이를 방지하기 위해 국 민의 ‘알 권리’에 근거한 공공기관 정보 공개의 원칙 확립이 과제로 남아 있 다."
+       "text": "2. 자의적인 여론 조작 위험 권력자가 불리한 정보를 발표하지 않도록 통제하거나, 허위 정보(예: 가짜 뉴 스)를 퍼뜨려 여론을 자신에게 유리하게 조작하려하는 것이 여론 조작이다. 매스미디어는 이러한 조작에 가담할 우려가 있다→ 이를 방지하기 위해 국 민의 ‘알 권리’에 근거한 공공기관 정보 공개의 원칙 확립이 과제로 남아 있다."
       }
      ]
     },
@@ -15595,7 +15595,12 @@
     // extraction captures its grid), so its cell text came through as 6
     // separate, oddly-split TEXT fragments in reading order. Matching that
     // exact run and replacing it with a real <table> is a one-off fix, not
-    // a general table-detection mechanism.
+    // a general table-detection mechanism. In reading order the table's raw
+    // fragments actually precede the "정당과 선거" L1 title it belongs
+    // under (both title and table came from the same page, table above),
+    // so instead of dropping the <table> in at the matched fragments'
+    // position, it's held back and inserted right after that L1 heading is
+    // peeled out below — keeping the table under its section title.
     var TABLE_SEQUENCES = [
       {
         matchTexts: [
@@ -15606,7 +15611,8 @@
           "강령과 규약을 갖춘 강한 정당 규율",
           "활동 방식국회의원 중심 활동 정당 조직을 통한 대중의 일상적 정치 참여"
         ],
-        html: TABLE_HTML_PARTY_COMPARISON
+        html: TABLE_HTML_PARTY_COMPARISON,
+        insertAfterHeading: "정당과 선거"
       }
     ];
 
@@ -15620,7 +15626,9 @@
           return s.matchTexts.every(function(t, k){ return pageItems[pi+k] && pageItems[pi+k].text === t; });
         });
         if(seq){
-          items.push({ it: { marker: "TABLE", symbol: null, text: "", html: seq.html }, page: pageObj.page });
+          if(!seq.insertAfterHeading){
+            items.push({ it: { marker: "TABLE", symbol: null, text: "", html: seq.html }, page: pageObj.page });
+          }
           pi += seq.matchTexts.length - 1;
           continue;
         }
@@ -15637,7 +15645,11 @@
           rest = rest.slice(match.prefix.length);
         }
         if(extracted.length){
-          extracted.forEach(function(h){ items.push({ it: { marker: h.marker, symbol: h.symbol, text: h.text }, page: pageObj.page }); });
+          extracted.forEach(function(h){
+            items.push({ it: { marker: h.marker, symbol: h.symbol, text: h.text }, page: pageObj.page });
+            var pendingTable = TABLE_SEQUENCES.find(function(s){ return s.insertAfterHeading === h.text; });
+            if(pendingTable) items.push({ it: { marker: "TABLE", symbol: null, text: "", html: pendingTable.html }, page: pageObj.page });
+          });
           if(rest) items.push({ it: { marker: "TEXT", symbol: null, text: rest }, page: pageObj.page });
           continue;
         }
