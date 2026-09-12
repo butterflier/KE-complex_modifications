@@ -1622,7 +1622,7 @@
         // this carries the whole paragraph list as data (topicParas) for
         // placeSplittableTopic() to greedily pack as much as fits into
         // each column before spilling the remainder into the next.
-        var title = it.text.replace(/^\s*TOPIC\s*[:：]\s*/, "");
+        var title = it.text.replace(/^\s*TOPICS?\s*[|:：]\s*/, "");
         var bodyParas = [];
         var j = i+1;
         while(j < items.length && items[j].it.marker === "TEXT"){
