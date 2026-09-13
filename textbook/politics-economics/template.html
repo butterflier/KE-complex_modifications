@@ -226,6 +226,9 @@
   .fig{ margin:0 0 2.6mm; }
   .fig img{ display:block; width:100%; height:auto; border:.75pt solid var(--paper-border); }
 
+  /* 설명 문단 옆에 곁들이는 작은 도해. 단 폭을 다 쓰지 않고 가운데로 모은다. */
+  .fig-sm img{ width:62%; margin-left:auto; margin-right:auto; }
+
   .empty-state{ width:210mm; padding:4rem 2rem; text-align:center; color:var(--ink-faint); font-size:var(--fs-sm); }
   .loading{ padding:5rem 1rem; text-align:center; color:var(--ink-faint); font-size:var(--fs-sm); letter-spacing:.02em; }
 
@@ -322,7 +325,9 @@
     "역사적 분류": [{ file: "page02_img1.png", narrow: true }],
     "권력분립과 통치기구의 관계": [{ file: "page14_img1.png", narrow: true }],
     "조약의 승인": [{ file: "page15_img1.png", narrow: true }],
-    "내각의 총사직": [{ file: "page17_img3.png", narrow: true }]
+    "내각의 총사직": [{ file: "page17_img3.png", narrow: true }],
+    "수요곡선의 이동": [{ file: "page28_img1.png", narrow: true, small: true }],
+    "공급곡선의 이동": [{ file: "page28_img2.png", narrow: true, small: true }]
   };
   // Anchored to the exact text of a TEXT paragraph rather than a heading —
   // for images that belong right after a specific sentence, not a section
@@ -521,10 +526,10 @@
   // payoff (every wide image tried in this book was too small to read
   // once shrunk sideways anyway). Keeping every figure a plain in-column
   // unit keeps the whole engine simpler for the next textbook to reuse.
-  function figuresHtml(ims){
+  function figuresHtml(ims, smalls){
     if(!ims || !ims.length) return "";
     var html = '<div class="figs">';
-    ims.forEach(function(im){
+    ims.forEach(function(im, idx){
       var src = IMAGES_SRC[im.file];
       if(!src) return;
       // NOT loading="lazy": these are already-embedded base64 data: URIs
@@ -536,7 +541,8 @@
       // concludes the page has room, and the image only reveals its real
       // size (and overflows the fixed page box) once it finally loads
       // after being scrolled into view for real.
-      html += '<figure class="fig"><img src="'+src+'" alt="자료 이미지"></figure>';
+      var cls = (smalls && smalls[idx]) ? 'fig fig-sm' : 'fig';
+      html += '<figure class="'+cls+'"><img src="'+src+'" alt="자료 이미지"></figure>';
     });
     html += '</div>';
     return html;
@@ -567,8 +573,13 @@
   // overflow handling.
   function renderOverrideList(overrides){
     if(!overrides) return "";
-    var ims = overrides.map(function(o){ return imageByFile[o.file] || null; }).filter(Boolean);
-    return figuresHtml(ims);
+    var ims = [], smalls = [];
+    overrides.forEach(function(o){
+      var im = imageByFile[o.file];
+      if(!im) return;
+      ims.push(im); smalls.push(!!o.small);
+    });
+    return figuresHtml(ims, smalls);
   }
   function renderImageOverride(text){ return renderOverrideList(IMAGE_AFTER_TEXT[text]); }
   function renderImageOverrideForParagraph(text){ return renderOverrideList(IMAGE_AFTER_PARAGRAPH[text]); }
@@ -1052,7 +1063,8 @@
     "존 메이너드 케인스 (J.M. Keynes, 1883~1946)",
     "국부(國富, national wealth)",
     "튀르키예의 EU 가입 협상이 진전되지 못한 주요 쟁점",
-    "국제연합과 국제협력"
+    "국제연합과 국제협력",
+    "사회주의의 탄생과 전개"
   ].forEach(function(t){ TOC_EXCLUDE_H1[t] = true; });
   [
     "경기 변동",

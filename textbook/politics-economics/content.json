@@ -2031,8 +2031,8 @@
        "text": "인권 보장과 평등권"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "대일본제국헌법에서의 ‘신민의 권리’"
       },
       {
@@ -2227,8 +2227,8 @@
        "text": "남녀 평등을 둘러싼 최근 동향과 과제"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "여성 보호 규정 철폐"
       },
       {
@@ -2326,12 +2326,12 @@
      "items": [
       {
        "marker": "H1",
-       "symbol": "●",
+       "symbol": "■",
        "text": "정신의 자유"
       },
       {
-       "marker": "H1",
-       "symbol": "■",
+       "marker": "H2",
+       "symbol": "○",
        "text": "사상·양심의 자유"
       },
       {
@@ -2344,8 +2344,8 @@
     {
      "items": [
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H3",
+       "symbol": "◎",
        "text": "사례: 미쓰비시수지 사건"
       },
       {
@@ -2367,8 +2367,8 @@
     {
      "items": [
       {
-       "marker": "H1",
-       "symbol": "■",
+       "marker": "H2",
+       "symbol": "○",
        "text": "신앙의 자유"
       },
       {
@@ -2395,13 +2395,13 @@
     {
      "items": [
       {
-       "marker": "H1",
-       "symbol": "■",
+       "marker": "H2",
+       "symbol": "○",
        "text": "정교분리 관련 판례"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H3",
+       "symbol": "◎",
        "text": "쓰 지진제 소송"
       },
       {
@@ -2414,8 +2414,8 @@
     {
      "items": [
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H3",
+       "symbol": "◎",
        "text": "에히메 현 다마구시료(봉납료) 소송"
       },
       {
@@ -2428,8 +2428,8 @@
     {
      "items": [
       {
-       "marker": "H1",
-       "symbol": "■",
+       "marker": "H2",
+       "symbol": "○",
        "text": "표현의 자유"
       },
       {
@@ -2442,8 +2442,8 @@
     {
      "items": [
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H3",
+       "symbol": "◎",
        "text": "사례: 차터레이 사건"
       },
       {
@@ -2456,8 +2456,8 @@
     {
      "items": [
       {
-       "marker": "H1",
-       "symbol": "■",
+       "marker": "H2",
+       "symbol": "○",
        "text": "소셜 네트워크 서비스(SNS)"
       },
       {
@@ -3298,13 +3298,18 @@
        "text": "인권 보장을 위한 청구권"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
-       "text": "재판을 받을 권리 (제32조) : 분쟁에 대해 누구나 공정하게 재판 받을 권리가 보장된다."
+       "marker": "H2",
+       "symbol": "○",
+       "text": "재판을 받을 권리 (제32조)"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "TEXT",
+       "symbol": null,
+       "text": "분쟁에 대해 누구나 공정하게 재판 받을 권리가 보장된다."
+      },
+      {
+       "marker": "H2",
+       "symbol": "○",
        "text": "손해배상 청구권 (제17조)"
       },
       {
@@ -3313,8 +3318,8 @@
        "text": "공무원의 위법한 행위로 피해를 입었을 경우, 국가나 지방자치단체에 손해배상을 청구할 수 있다. 이는 국가배상법에 근거 한다."
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "형사보상 청구권 (제40조)"
       },
       {
@@ -3411,8 +3416,8 @@
        "text": "프라이버시권"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "고도 정보사회와 프라이버시 위협"
       },
       {
@@ -3467,8 +3472,8 @@
        "text": "개인정보 보호와 전자정부"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "개인정보보호법과 관련 법률"
       },
       {
@@ -3602,8 +3607,8 @@
        "text": "평화주의"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "전쟁의 포기"
       },
       {
@@ -4510,8 +4515,8 @@
        "text": "국회 운영의 원칙"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "의사진행 규칙"
       },
       {
@@ -6542,6 +6547,11 @@
     {
      "items": [
       {
+       "marker": "H1",
+       "symbol": "●",
+       "text": "대표 방식의 분류"
+      },
+      {
        "marker": "TEXT",
        "symbol": null,
        "text": "다수대표제 다수 득표한 정당에 의석을 집중시킴 → 안정적인 정권 가능성이 높음 소수대표제 소수파도 일정 비율의 의석을 확보할 수 있도록 배려"
@@ -6550,11 +6560,6 @@
     },
     {
      "items": [
-      {
-       "marker": "H1",
-       "symbol": "●",
-       "text": "대표 방식의 분류"
-      },
       {
        "marker": "H1",
        "symbol": "●",
@@ -7089,8 +7094,8 @@
        "text": "정치의식의 문제"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "정치적 무관심층의 증가"
       },
       {
@@ -7122,8 +7127,8 @@
        "text": "참정의 방식"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "비제도적 참정의 필요성"
       },
       {
@@ -7308,14 +7313,9 @@
        "text": "세계 대공황과 정부의 개입"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "1929년 세계 대공황"
-      },
-      {
-       "marker": "H1",
-       "symbol": "●",
-       "text": "뉴딜 정책(New Deal)"
       },
       {
        "marker": "TEXT",
@@ -7326,6 +7326,11 @@
     },
     {
      "items": [
+      {
+       "marker": "H2",
+       "symbol": "○",
+       "text": "뉴딜 정책(New Deal)"
+      },
       {
        "marker": "TEXT",
        "symbol": null,
@@ -7371,12 +7376,7 @@
       {
        "marker": "H1",
        "symbol": "●",
-       "text": "사회주의의 탄생"
-      },
-      {
-       "marker": "H1",
-       "symbol": "●",
-       "text": "사회주의의 전개"
+       "text": "사회주의의 탄생과 전개"
       },
       {
        "marker": "TEXT",
@@ -8760,8 +8760,8 @@
        "text": "국민순생산(NNP, Net National Product)"
       },
       {
-       "marker": "H1",
-       "symbol": "●",
+       "marker": "H2",
+       "symbol": "○",
        "text": "순생산 개념"
       },
       {
@@ -11762,7 +11762,12 @@
       {
        "marker": "H2",
        "symbol": "○",
-       "text": "기타 원유 유출 등으로 인한 해양 오염, 원자력 발전 사고나 핵 실험으로 인한 방사성 물질 오염."
+       "text": "기타"
+      },
+      {
+       "marker": "TEXT",
+       "symbol": null,
+       "text": "원유 유출 등으로 인한 해양 오염, 원자력 발전 사고나 핵 실험으로 인한 방사성 물질 오염."
       }
      ]
     },
@@ -12276,11 +12281,6 @@
     {
      "items": [
       {
-       "marker": "H2",
-       "symbol": "○",
-       "text": "감반(減反) 정책"
-      },
-      {
        "marker": "H1",
        "symbol": "●",
        "text": "쌀의 공급 증가와 감반(減反) 정책"
@@ -12673,7 +12673,12 @@
       {
        "marker": "H2",
        "symbol": "○",
-       "text": "휴일·휴가 : 사용자는 근로자에게 매주 최소 1일 또는 4주 동안 최소 4일의 휴일을 부여해야 한다."
+       "text": "휴일·휴가"
+      },
+      {
+       "marker": "TEXT",
+       "symbol": null,
+       "text": "사용자는 근로자에게 매주 최소 1일 또는 4주 동안 최소 4일의 휴일을 부여해야 한다."
       }
      ]
     },
